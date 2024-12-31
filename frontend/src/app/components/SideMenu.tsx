@@ -1,15 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 
 interface SideMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  onSearch?: () => void;
 }
 
-export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
+export default function SideMenu({ isOpen, onClose, onSearch }: SideMenuProps) {
+  const [mounted, setMounted] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && onSearch && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isOpen, onSearch]);
+
+  // Don't render anything until mounted on client
+  if (!mounted) {
+    return null;
+  }
 
   const toggleItem = (item: string) => {
     setExpandedItems(prev => 
@@ -17,6 +36,12 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
         ? prev.filter(i => i !== item)
         : [...prev, item]
     );
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle search logic here
+    console.log('Searching for:', searchQuery);
   };
 
   const menuItems = [
@@ -41,13 +66,13 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
       {/* Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          className="fixed inset-0 top-[104px] bg-black bg-opacity-50 z-40"
           onClick={onClose}
         />
       )}
       
       {/* Menu */}
-      <div className={`fixed top-0 left-0 h-full w-[300px] bg-white transform transition-transform duration-300 ease-in-out z-50 ${
+      <div className={`fixed top-[104px] left-0 h-[calc(100%-104px)] w-[300px] bg-white text-black transform transition-transform duration-300 ease-in-out z-50 ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {/* Close button */}
@@ -62,18 +87,24 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
 
         {/* Search bar */}
         <div className="p-4 pt-16 border-b">
-          <div className="relative">
+          <form onSubmit={handleSearch} className="relative">
             <input
+              ref={searchInputRef}
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search news, topics and more"
-              className="w-full p-2 pr-10 border rounded-none focus:outline-none"
+              className="w-full p-2 pr-10 border rounded-none focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
-            <button className="absolute right-2 top-1/2 transform -translate-y-1/2">
+            <button 
+              type="submit"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 hover:text-blue-500"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </button>
-          </div>
+          </form>
         </div>
 
         {/* Navigation items */}
@@ -83,7 +114,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
               <div className="flex items-center justify-between p-4">
                 <Link 
                   href={item.path}
-                  className="text-lg font-semibold flex-grow"
+                  className="text-lg font-semibold flex-grow text-black hover:text-gray-700"
                   onClick={onClose}
                 >
                   {item.title}
