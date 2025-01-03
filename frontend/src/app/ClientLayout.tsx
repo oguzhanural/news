@@ -43,12 +43,16 @@ export default function ClientLayout({
 
           {/* Right Section */}
           <div className="flex items-center space-x-4">
-            <button className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800">
-              Register
-            </button>
-            <button className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800">
-              Sign In
-            </button>
+            <Link href="/register">
+              <button className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800">
+                Register
+              </button>
+            </Link>
+            <Link href="/signin">
+              <button className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800">
+                Sign In
+              </button>
+            </Link>
           </div>
         </div>
 
