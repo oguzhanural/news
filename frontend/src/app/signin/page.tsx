@@ -2,27 +2,27 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 
-export default function RegisterPage() {
+export default function SignInPage() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle registration logic here
-    console.log('Registration email:', email);
+    // Handle sign in logic here
+    console.log('Sign in:', { email, password });
   };
 
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Registration Form */}
+      {/* Left side - Sign In Form */}
       <div className="w-1/2 bg-black text-white p-8 flex flex-col justify-center">
         <div className="max-w-md mx-auto w-full">
           {/* Logo */}
           <div className="text-4xl font-bold text-center mb-8">NEWS</div>
           
-          <h1 className="text-3xl font-bold mb-6">Register for a News account</h1>
-          <p className="mb-8 text-gray-300">You must be 16 or over to register for a News account</p>
+          <h1 className="text-3xl font-bold mb-6">Sign in to News</h1>
+          <p className="mb-8 text-gray-300">Welcome back to News</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -40,24 +40,39 @@ export default function RegisterPage() {
               />
             </div>
 
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-transparent border border-gray-600 rounded-none focus:outline-none focus:border-white text-white"
+                placeholder="Enter your password"
+                required
+              />
+            </div>
+
             <button
               type="submit"
               className="w-full bg-blue-600 text-white py-3 px-4 hover:bg-blue-700 transition-colors"
             >
-              Continue
+              Sign in
             </button>
           </form>
 
           <p className="mt-6 text-center">
-            Already have an account?{' '}
-            <Link href="/signin" className="text-blue-400 hover:text-blue-300">
-              Sign in now
+            Don't have an account?{' '}
+            <Link href="/register" className="text-blue-400 hover:text-blue-300">
+              Register now
             </Link>
           </p>
 
           <p className="mt-8 text-sm text-gray-400">
             <Link href="/help" className="hover:text-white">
-              Find out more about News accounts
+              Forgot your password?
             </Link>
           </p>
         </div>

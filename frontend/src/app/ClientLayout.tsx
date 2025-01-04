@@ -59,7 +59,7 @@ export default function ClientLayout({
         {/* Secondary Navigation */}
         <nav className="bg-black border-t border-gray-700">
           <div className="container mx-auto px-4">
-            <ul className="flex items-center space-x-6 overflow-x-auto py-2 text-sm">
+            <ul className="flex items-center justify-center space-x-6 overflow-x-auto py-2 text-sm">
               <li><Link href="/" className="hover:text-gray-300">Home</Link></li>
               <li><Link href="/news" className="hover:text-gray-300">News</Link></li>
               <li><Link href="/sport" className="hover:text-gray-300">Sport</Link></li>
