@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useTheme } from '../context/ThemeContext';
 
 export default function SignInPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { isDarkMode } = useTheme();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,13 +18,13 @@ export default function SignInPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left side - Sign In Form */}
-      <div className="w-1/2 bg-black text-white p-8 flex flex-col justify-center">
+      <div className={`w-1/2 ${isDarkMode ? 'bg-black text-white' : 'bg-white text-black'} p-8 flex flex-col justify-center`}>
         <div className="max-w-md mx-auto w-full">
           {/* Logo */}
-          <div className="text-4xl font-bold text-center mb-8">NEWS</div>
+          <div className="text-4xl font-bold mb-8">NEWS</div>
           
           <h1 className="text-3xl font-bold mb-6">Sign in to News</h1>
-          <p className="mb-8 text-gray-300">Welcome back to News</p>
+          <p className={`mb-8 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Welcome back to News</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -34,7 +36,9 @@ export default function SignInPage() {
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-transparent border border-gray-600 rounded-none focus:outline-none focus:border-white text-white"
+                className={`w-full px-4 py-3 bg-transparent border ${
+                  isDarkMode ? 'border-gray-600 text-white focus:border-white' : 'border-gray-300 text-black focus:border-black'
+                } rounded-none focus:outline-none`}
                 placeholder="Enter your email"
                 required
               />
@@ -49,7 +53,9 @@ export default function SignInPage() {
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-transparent border border-gray-600 rounded-none focus:outline-none focus:border-white text-white"
+                className={`w-full px-4 py-3 bg-transparent border ${
+                  isDarkMode ? 'border-gray-600 text-white focus:border-white' : 'border-gray-300 text-black focus:border-black'
+                } rounded-none focus:outline-none`}
                 placeholder="Enter your password"
                 required
               />
@@ -65,13 +71,13 @@ export default function SignInPage() {
 
           <p className="mt-6 text-center">
             Don't have an account?{' '}
-            <Link href="/register" className="text-blue-400 hover:text-blue-300">
+            <Link href="/register" className="text-blue-500 hover:text-blue-400">
               Register now
             </Link>
           </p>
 
-          <p className="mt-8 text-sm text-gray-400">
-            <Link href="/help" className="hover:text-white">
+          <p className={`mt-8 text-sm ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'}`}>
+            <Link href="/help">
               Forgot your password?
             </Link>
           </p>
@@ -79,7 +85,7 @@ export default function SignInPage() {
       </div>
 
       {/* Right side - Empty Space */}
-      <div className="w-1/2 bg-black">
+      <div className={`w-1/2 ${isDarkMode ? 'bg-black' : 'bg-gray-100'}`}>
       </div>
     </div>
   );

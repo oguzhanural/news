@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTheme } from '../context/ThemeContext';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
+  const { isDarkMode } = useTheme();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,13 +18,13 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left side - Registration Form */}
-      <div className="w-1/2 bg-black text-white p-8 flex flex-col justify-center">
+      <div className={`w-1/2 ${isDarkMode ? 'bg-black text-white' : 'bg-white text-black'} p-8 flex flex-col justify-center`}>
         <div className="max-w-md mx-auto w-full">
           {/* Logo */}
-          <div className="text-4xl font-bold text-center mb-8">NEWS</div>
+          <div className="text-4xl font-bold mb-8">NEWS</div>
           
           <h1 className="text-3xl font-bold mb-6">Register for a News account</h1>
-          <p className="mb-8 text-gray-300">You must be 16 or over to register for a News account</p>
+          <p className={`mb-8 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>You must be 16 or over to register for a News account</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -34,7 +36,9 @@ export default function RegisterPage() {
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-transparent border border-gray-600 rounded-none focus:outline-none focus:border-white text-white"
+                className={`w-full px-4 py-3 bg-transparent border ${
+                  isDarkMode ? 'border-gray-600 text-white focus:border-white' : 'border-gray-300 text-black focus:border-black'
+                } rounded-none focus:outline-none`}
                 placeholder="Enter your email"
                 required
               />
@@ -50,13 +54,13 @@ export default function RegisterPage() {
 
           <p className="mt-6 text-center">
             Already have an account?{' '}
-            <Link href="/signin" className="text-blue-400 hover:text-blue-300">
+            <Link href="/signin" className="text-blue-500 hover:text-blue-400">
               Sign in now
             </Link>
           </p>
 
-          <p className="mt-8 text-sm text-gray-400">
-            <Link href="/help" className="hover:text-white">
+          <p className={`mt-8 text-sm ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'}`}>
+            <Link href="/help">
               Find out more about News accounts
             </Link>
           </p>
@@ -64,7 +68,7 @@ export default function RegisterPage() {
       </div>
 
       {/* Right side - Empty Space */}
-      <div className="w-1/2 bg-black">
+      <div className={`w-1/2 ${isDarkMode ? 'bg-black' : 'bg-gray-100'}`}>
       </div>
     </div>
   );
