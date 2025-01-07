@@ -1,0 +1,76 @@
+type News {
+  id: ID!
+  title: String!
+  slug: String!
+  content: String!
+  summary: String
+  imageUrl: String
+  category: Category!
+  author: User!
+  publishDate: String!
+  updatedAt: String!
+  status: NewsStatus!
+  tags: [String!]
+}
+
+type Category {
+  id: ID!
+  name: String!
+  slug: String!
+}
+
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  role: UserRole!
+}
+
+enum UserRole {
+  EDITOR
+  JOURNALIST
+  ADMIN
+}
+
+enum NewsStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+input CreateNewsInput {
+  title: String!
+  content: String!
+  summary: String
+  imageUrl: String
+  categoryId: ID!
+  tags: [String!]
+}
+
+input UpdateNewsInput {
+  id: ID!
+  title: String
+  content: String
+  summary: String
+  imageUrl: String
+  categoryId: ID
+  status: NewsStatus
+  tags: [String!]
+}
+
+type Query {
+  news(id: ID!): News
+  newsList(
+    category: ID
+    status: NewsStatus
+    limit: Int
+    offset: Int
+  ): [News!]!
+  categories: [Category!]!
+}
+
+type Mutation {
+  createNews(input: CreateNewsInput!): News!
+  updateNews(input: UpdateNewsInput!): News!
+  deleteNews(id: ID!): Boolean!
+} 

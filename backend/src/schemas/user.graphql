@@ -1,0 +1,41 @@
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  role: UserRole!
+}
+
+enum UserRole {
+  EDITOR
+  JOURNALIST
+  ADMIN
+}
+
+input RegisterUserInput {
+  name: String!
+  email: String!
+  password: String!
+  role: UserRole
+}
+
+input LoginUserInput {
+  email: String!
+  password: String!
+}
+
+type AuthPayload {
+  token: String!
+  user: User!
+}
+
+type Query {
+  user(id: ID!): User
+  users: [User!]!
+}
+
+type Mutation {
+  registerUser(input: RegisterUserInput!): AuthPayload!
+  loginUser(input: LoginUserInput!): AuthPayload!
+  updateUser(id: ID!, input: RegisterUserInput!): User!
+  deleteUser(id: ID!): Boolean!
+} 
