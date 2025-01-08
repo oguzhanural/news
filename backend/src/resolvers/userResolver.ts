@@ -1,6 +1,7 @@
 import { User } from '../models/User';
 import jwt from 'jsonwebtoken';
 import { GraphQLError } from 'graphql';
+import bcrypt from 'bcryptjs';
 
 interface UserInput {
   name: string;
@@ -21,22 +22,46 @@ export const userResolver = {
       try {
         const user = await User.findById(id).select('-password');
         if (!user) {
-          throw new Error('User not found');
+          throw new GraphQLError('User not found', {
+            extensions: { code: 'NOT_FOUND' }
+          });
         }
         return user;
-      } catch (error) {
-        throw new Error('Error fetching user');
+      } catch (error: unknown) {
+        if (error instanceof GraphQLError) {
+          throw error;
+        }
+        throw new GraphQLError('Error fetching user', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
       }
     },
 
     // Get all users (admin only)
     users: async (_: any, __: any, context: any) => {
       try {
-        // TODO: Add authentication check
+        if (!context.userId) {
+          throw new GraphQLError('Authentication required', {
+            extensions: { code: 'UNAUTHENTICATED' }
+          });
+        }
+
+        const currentUser = await User.findById(context.userId);
+        if (currentUser?.role !== 'ADMIN') {
+          throw new GraphQLError('Admin access required', {
+            extensions: { code: 'FORBIDDEN' }
+          });
+        }
+
         const users = await User.find().select('-password');
         return users;
-      } catch (error) {
-        throw new Error('Error fetching users');
+      } catch (error: unknown) {
+        if (error instanceof GraphQLError) {
+          throw error;
+        }
+        throw new GraphQLError('Error fetching users', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
       }
     }
   },
@@ -52,7 +77,14 @@ export const userResolver = {
           });
         }
 
-        const user = new User(input);
+        // Hash password before creating user
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(input.password, salt);
+
+        const user = new User({
+          ...input,
+          password: hashedPassword
+        });
         await user.save();
 
         const token = jwt.sign(
@@ -71,6 +103,9 @@ export const userResolver = {
           }
         };
       } catch (error: unknown) {
+        if (error instanceof GraphQLError) {
+          throw error;
+        }
         if (error instanceof Error) {
           throw new GraphQLError(`Error registering user: ${error.message}`, {
             extensions: { code: 'INTERNAL_SERVER_ERROR' }
@@ -130,11 +165,33 @@ export const userResolver = {
     },
 
     // Update user
-    updateUser: async (_: any, { id, input }: { id: string, input: Partial<UserInput> }) => {
+    updateUser: async (_: any, { id, input }: { id: string, input: Partial<UserInput> }, context: any) => {
       try {
+        // Check authentication
+        if (!context.userId) {
+          throw new GraphQLError('Authentication required', {
+            extensions: { code: 'UNAUTHENTICATED' }
+          });
+        }
+
+        // Only allow users to update their own profile or admin to update any profile
+        const currentUser = await User.findById(context.userId);
+        if (context.userId !== id && currentUser?.role !== 'ADMIN') {
+          throw new GraphQLError('Not authorized to update this user', {
+            extensions: { code: 'FORBIDDEN' }
+          });
+        }
+
+        // If password is being updated, hash it
+        let updateData = { ...input };
+        if (input.password) {
+          const salt = await bcrypt.genSalt(10);
+          updateData.password = await bcrypt.hash(input.password, salt);
+        }
+
         const user = await User.findByIdAndUpdate(
           id,
-          { $set: input },
+          { $set: updateData },
           { new: true, runValidators: true }
         ).select('-password');
 
@@ -161,8 +218,23 @@ export const userResolver = {
     },
 
     // Delete user
-    deleteUser: async (_: any, { id }: { id: string }) => {
+    deleteUser: async (_: any, { id }: { id: string }, context: any) => {
       try {
+        // Check authentication
+        if (!context.userId) {
+          throw new GraphQLError('Authentication required', {
+            extensions: { code: 'UNAUTHENTICATED' }
+          });
+        }
+
+        // Only allow users to delete their own profile or admin to delete any profile
+        const currentUser = await User.findById(context.userId);
+        if (context.userId !== id && currentUser?.role !== 'ADMIN') {
+          throw new GraphQLError('Not authorized to delete this user', {
+            extensions: { code: 'FORBIDDEN' }
+          });
+        }
+
         const user = await User.findByIdAndDelete(id);
         if (!user) {
           throw new GraphQLError('User not found', {
