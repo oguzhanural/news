@@ -1,58 +1,104 @@
 # News Website Project
 
-A modern news website built with a React TypeScript frontend and Node.js TypeScript backend, utilizing GraphQL for efficient data fetching and MongoDB for data storage.
+A modern news website built with Next.js frontend and Node.js TypeScript backend, utilizing GraphQL for efficient data fetching and MongoDB for data storage. The project implements a full-featured news management system with user authentication, role-based access control, and content management capabilities.
 
 ## Tech Stack
 
 ### Frontend
-- React
+- Next.js 14
 - TypeScript
-- GraphQL (Apollo Client)
+- Apollo Client for GraphQL
+- Tailwind CSS
 - Modern UI/UX design
 - Responsive layout
-- State management (to be decided)
-- CSS-in-JS solution (to be decided)
 
 ### Backend
 - Node.js
-- TypeScript (v22.12.0)
-- GraphQL API
-- MongoDB
+- TypeScript
+- GraphQL with Apollo Server
+- MongoDB with Mongoose
 - Express.js
-- Apollo Server
 - JWT Authentication
+- BCrypt for password hashing
 
-## Prerequisites
+## Project Structure
 
+```
+├── frontend/                # Next.js frontend
+│   ├── src/
+│   │   ├── app/            # Next.js app directory
+│   │   ├── components/     # Reusable UI components
+│   │   ├── lib/           # Utility functions and configurations
+│   │   └── styles/        # Global styles and Tailwind config
+│   └── package.json
+│
+├── backend/                 # Node.js TypeScript backend
+│   ├── src/
+│   │   ├── models/         # MongoDB Mongoose models
+│   │   │   ├── User.ts     # User model with authentication
+│   │   │   ├── News.ts     # News article model
+│   │   │   └── Category.ts # Category model
+│   │   ├── resolvers/      # GraphQL resolvers
+│   │   │   ├── userResolver.ts    # User-related operations
+│   │   │   ├── newsResolver.ts    # News-related operations
+│   │   │   └── categoryResolver.ts # Category operations
+│   │   ├── schemas/        # GraphQL type definitions
+│   │   │   ├── user.graphql
+│   │   │   ├── news.graphql
+│   │   │   └── category.graphql
+│   │   ├── utils/          # Helper functions
+│   │   │   ├── db.ts       # Database connection
+│   │   │   └── seedData.ts # Seed data utilities
+│   │   └── scripts/        # Utility scripts
+│   │       ├── seed.ts     # Database seeding
+│   │       └── updatePassword.ts # Password update utility
+│   └── package.json
+```
+
+## Features
+
+### Implemented Features
+- [x] User Authentication System
+  - JWT-based authentication
+  - Password hashing with BCrypt
+  - Role-based authorization (ADMIN, EDITOR, JOURNALIST)
+  
+- [x] News Management
+  - CRUD operations for news articles
+  - Category management
+  - Status tracking (DRAFT, PUBLISHED, ARCHIVED)
+  - Tags support
+  
+- [x] User Management
+  - User registration and login
+  - Profile management
+  - Role-based access control
+  
+- [x] Category System
+  - Category CRUD operations
+  - News article categorization
+
+### Planned Features
+- [ ] Frontend Implementation
+- [ ] Comments System
+- [ ] Search Functionality
+- [ ] Image Upload
+- [ ] Rich Text Editor
+- [ ] Analytics Dashboard
+
+## Getting Started
+
+### Prerequisites
 - Node.js (v18 or higher)
 - MongoDB
 - npm or yarn
 - Git
 
-## Project Structure
-
-```
-├── frontend/                # React TypeScript frontend
-│   ├── src/
-│   ├── public/
-│   └── package.json
-│
-├── backend/                 # Node.js TypeScript backend
-│   ├── src/
-│   │   ├── models/         # MongoDB models
-│   │   ├── resolvers/      # GraphQL resolvers
-│   │   ├── schemas/        # GraphQL type definitions
-│   │   └── utils/          # Helper functions
-│   └── package.json
-```
-
-## Getting Started
-
 ### Backend Setup
 
-1. Navigate to the backend directory:
+1. Clone the repository and navigate to the backend directory:
    ```bash
-   cd backend
+   cd news/backend
    ```
 
 2. Install dependencies:
@@ -61,22 +107,32 @@ A modern news website built with a React TypeScript frontend and Node.js TypeScr
    ```
 
 3. Create a `.env` file in the backend directory:
-   ```
+   ```env
    PORT=4000
-   MONGODB_URI=your_mongodb_uri
+   MONGO_USER=your_mongodb_user
+   MONGO_PASS=your_mongodb_password
+   MONGO_DB_NAME=your_database_name
    JWT_SECRET=your_jwt_secret
+   JWT_EXPIRES_IN=24h
    ```
 
-4. Start the development server:
+4. Seed the database with initial data:
+   ```bash
+   npm run seed
+   ```
+
+5. Start the development server:
    ```bash
    npm run dev
    ```
+
+The GraphQL server will be available at `http://localhost:4000/graphql`
 
 ### Frontend Setup
 
 1. Navigate to the frontend directory:
    ```bash
-   cd frontend
+   cd news/frontend
    ```
 
 2. Install dependencies:
@@ -84,50 +140,121 @@ A modern news website built with a React TypeScript frontend and Node.js TypeScr
    npm install
    ```
 
-3. Create a `.env` file in the frontend directory:
-   ```
-   REACT_APP_API_URL=http://localhost:4000/graphql
+3. Create a `.env.local` file:
+   ```env
+   NEXT_PUBLIC_API_URL=http://localhost:4000/graphql
    ```
 
 4. Start the development server:
    ```bash
-   npm start
+   npm run dev
    ```
 
-## API Testing
+The frontend will be available at `http://localhost:3000`
 
-The API can be tested using:
-- Postman
-- GraphQL Playground (available at http://localhost:4000/graphql when backend is running)
-- Frontend application
-- Apollo Studio
+## API Documentation
 
-## Features (Planned)
+### Authentication
 
-- [ ] User authentication (signup/login)
-- [ ] News article management (CRUD operations)
-- [ ] Categories and tags
-- [ ] Search functionality
-- [ ] Responsive design
-- [ ] User roles (admin, editor, reader)
-- [ ] Comments system
-- [ ] Bookmarking articles
+#### Login
+```graphql
+mutation {
+  loginUser(input: {
+    email: "your-email@example.com"
+    password: "your-password"
+  }) {
+    token
+    user {
+      id
+      name
+      email
+      role
+    }
+  }
+}
+```
+
+#### Register
+```graphql
+mutation {
+  registerUser(input: {
+    name: "User Name"
+    email: "email@example.com"
+    password: "password"
+    role: JOURNALIST
+  }) {
+    token
+    user {
+      id
+      name
+      email
+      role
+    }
+  }
+}
+```
+
+### News Operations
+
+#### Create News
+```graphql
+mutation {
+  createNews(input: {
+    title: "News Title"
+    content: "News Content"
+    summary: "Brief summary"
+    categoryId: "category-id"
+    tags: ["tag1", "tag2"]
+  }) {
+    id
+    title
+    content
+    status
+  }
+}
+```
+
+#### Update News
+```graphql
+mutation {
+  updateNews(input: {
+    id: "news-id"
+    title: "Updated Title"
+    content: "Updated Content"
+    status: PUBLISHED
+  }) {
+    id
+    title
+    status
+  }
+}
+```
 
 ## Development Workflow
 
-1. Backend Development:
-   - Set up GraphQL schema
-   - Implement resolvers
-   - Create MongoDB models
-   - Add authentication
-   - API testing
+1. Create a new branch for each feature/fix
+2. Write tests (when implemented)
+3. Submit pull requests
+4. Code review
+5. Merge to main branch
 
-2. Frontend Development:
-   - Implement UI components
-   - Set up Apollo Client
-   - Add routing
-   - Implement authentication flow
-   - Style components
+## Error Handling
+
+The API implements consistent error handling with specific error codes:
+- UNAUTHENTICATED: Authentication issues
+- FORBIDDEN: Authorization issues
+- NOT_FOUND: Resource not found
+- BAD_USER_INPUT: Invalid input data
+- INTERNAL_SERVER_ERROR: Server-side issues
+
+## Security Considerations
+
+- Passwords are hashed using BCrypt
+- JWT tokens for authentication
+- Role-based access control
+- Input validation and sanitization
+- MongoDB injection prevention
+- CORS configuration
 
 ## Contributing
 
@@ -139,46 +266,8 @@ The API can be tested using:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
 ## Contact
 
-Your Name - your.email@example.com
-Project Link: [https://github.com/yourusername/news-website](https://github.com/yourusername/news-website)
-
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Project Link: [https://github.com/oguzhanural/news-website](https://github.com/oguzhanural/news-website)
