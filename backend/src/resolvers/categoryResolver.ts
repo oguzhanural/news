@@ -1,5 +1,6 @@
 import { Category } from '../models/Category';
 import { GraphQLError } from 'graphql';
+import slugify from 'slugify';
 
 export const categoryResolver = {
   Query: {
@@ -60,9 +61,12 @@ export const categoryResolver = {
           });
         }
 
+        // Generate the slug from the new name
+        const slug = slugify(input.name, { lower: true });
+
         const category = await Category.findByIdAndUpdate(
           id,
-          { $set: input },
+          { $set: { ...input, slug } },
           { new: true, runValidators: true }
         );
 
