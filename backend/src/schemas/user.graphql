@@ -23,6 +23,13 @@ input LoginUserInput {
   password: String!
 }
 
+input UpdateUserInput {
+  name: String
+  email: String
+  password: String
+  role: UserRole
+}
+
 type AuthPayload {
   token: String!
   user: User!
@@ -36,6 +43,6 @@ type Query {
 type Mutation {
   registerUser(input: RegisterUserInput!): AuthPayload!
   loginUser(input: LoginUserInput!): AuthPayload!
-  updateUser(id: ID!, input: RegisterUserInput!): User!
+  updateUser(id: ID!, input: UpdateUserInput!): User!
   deleteUser(id: ID!): Boolean!
 } 
