@@ -4,26 +4,34 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment variables
-.env
-.env.local
-.env.development
-.env.test
-.env.production
-
 # Build output
 dist/
 build/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
 
 # IDE and editor files
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# OS files
 .DS_Store
-Thumbs.db 
 
-# Scripts
+# Jest coverage and test files
+coverage/
+.jest/
+jest.config.js.map
+__snapshots__/
+*.snap
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+
 src/scripts/updatePassword.ts
