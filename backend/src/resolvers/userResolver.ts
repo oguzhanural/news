@@ -182,6 +182,13 @@ export const userResolver = {
           });
         }
 
+        // Prevent non-admin users from updating their role
+        if (input.role && currentUser?.role !== 'ADMIN') {
+          throw new GraphQLError('Not authorized to update role', {
+            extensions: { code: 'FORBIDDEN' }
+          });
+        }
+
         // If password is being updated, hash it
         let updateData = { ...input };
         if (input.password) {
