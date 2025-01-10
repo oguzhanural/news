@@ -27,7 +27,7 @@ interface TestResponse {
         updateCategory?: CategoryResponse;
         deleteCategory?: boolean;
       };
-      errors?: Array<{ message: string }>;
+      errors?: Array<{ message: string; extensions?: { code: string } }>;
     };
   };
 }
@@ -109,6 +109,34 @@ describe('Category Resolver Tests', () => {
       const data = response.body.singleResult.data;
       expect(data?.createCategory?.name).toBe('Technology');
       expect(data?.createCategory?.slug).toBe('technology');
+    });
+
+    it('should fail to create category with duplicate name', async () => {
+      // First, create a category
+      await Category.create({ name: 'Technology' });
+
+      // Try to create another category with the same name
+      const mutation = `
+        mutation {
+          createCategory(input: { name: "Technology" }) {
+            name
+            slug
+          }
+        }
+      `;
+
+      const response = await testServer.executeOperation(
+        { query: mutation },
+        {
+          contextValue: {
+            userId: testUser._id.toString()
+          }
+        }
+      ) as TestResponse;
+
+      expect(response.body.kind).toBe('single');
+      expect(response.body.singleResult.errors?.[0].message).toBe('Category already exists');
+      expect(response.body.singleResult.errors?.[0].extensions?.code).toBe('BAD_USER_INPUT');
     });
 
     it('should fail to create category without authentication', async () => {
