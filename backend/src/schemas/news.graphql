@@ -3,14 +3,21 @@ type News {
   title: String!
   slug: String!
   content: String!
-  summary: String
-  imageUrl: String
+  summary: String!
+  images: [Image!]!
   category: Category!
   author: User!
-  publishDate: String!
+  publishDate: String
+  createdAt: String!
   updatedAt: String!
   status: NewsStatus!
   tags: [String!]
+}
+
+type Image {
+  url: String!
+  caption: String
+  isMain: Boolean!
 }
 
 type Category {
@@ -38,21 +45,27 @@ enum NewsStatus {
   ARCHIVED
 }
 
+input ImageInput {
+  url: String!
+  caption: String
+  isMain: Boolean!
+}
+
 input CreateNewsInput {
   title: String!
   content: String!
-  summary: String
-  imageUrl: String
+  summary: String!
+  images: [ImageInput!]!
   categoryId: ID!
+  status: NewsStatus!
   tags: [String!]
 }
 
 input UpdateNewsInput {
-  id: ID!
   title: String
   content: String
   summary: String
-  imageUrl: String
+  images: [ImageInput!]
   categoryId: ID
   status: NewsStatus
   tags: [String!]
@@ -71,6 +84,6 @@ type Query {
 
 type Mutation {
   createNews(input: CreateNewsInput!): News!
-  updateNews(input: UpdateNewsInput!): News!
+  updateNews(id: ID!, input: UpdateNewsInput!): News!
   deleteNews(id: ID!): Boolean!
 } 
