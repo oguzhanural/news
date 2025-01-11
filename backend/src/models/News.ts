@@ -1,19 +1,36 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import slugify from 'slugify';
 
+interface IImage {
+  url: string;
+  caption?: string;
+  isMain: boolean;
+}
+
 export interface INews extends Document {
   title: string;
   slug: string;
   content: string;
-  summary?: string;
-  imageUrl?: string;
+  summary: string;
+  images: IImage[];
   category: mongoose.Types.ObjectId;
   author: mongoose.Types.ObjectId;
-  publishDate: Date;
-  updatedAt: Date;
+  publishDate: Date | null;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   tags: string[];
 }
+
+const ImageSchema = new Schema({
+  url: {
+    type: String,
+    required: true
+  },
+  caption: String,
+  isMain: {
+    type: Boolean,
+    required: true
+  }
+}, { _id: false });
 
 const NewsSchema = new Schema<INews>({
   title: {
@@ -31,9 +48,23 @@ const NewsSchema = new Schema<INews>({
   },
   summary: {
     type: String,
+    required: true,
     maxlength: 500
   },
-  imageUrl: String,
+  images: {
+    type: [ImageSchema],
+    required: true,
+    validate: {
+      validator: function(images: IImage[]) {
+        // Must have at least one image
+        if (images.length === 0) return false;
+        // Must have exactly one main image
+        const mainImages = images.filter(img => img.isMain);
+        return mainImages.length === 1;
+      },
+      message: 'News must have at least one image and exactly one main image'
+    }
+  },
   category: {
     type: Schema.Types.ObjectId,
     ref: 'Category',
@@ -46,7 +77,7 @@ const NewsSchema = new Schema<INews>({
   },
   publishDate: {
     type: Date,
-    default: Date.now
+    default: null
   },
   status: {
     type: String,
