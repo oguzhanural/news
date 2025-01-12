@@ -4,16 +4,26 @@ import jwt from 'jsonwebtoken';
 
 let mongod: MongoMemoryServer;
 
-// Setup before all tests
-beforeAll(async () => {
-  // Create an in-memory MongoDB instance
+// Connect to the in-memory database
+export const connectDB = async () => {
   mongod = await MongoMemoryServer.create();
   const uri = mongod.getUri();
-  await mongoose.connect(uri);
-});
+  
+  // Set higher timeout and buffer options
+  const mongooseOpts = {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 30000,
+    socketTimeoutMS: 30000,
+    connectTimeoutMS: 30000,
+    maxPoolSize: 10
+  };
 
-// Clear database between tests
-beforeEach(async () => {
+  await mongoose.connect(uri, mongooseOpts);
+};
+
+// Clear all data between tests
+export const clearDB = async () => {
   if (!mongoose.connection.db) {
     throw new Error('Database not connected');
   }
@@ -21,13 +31,13 @@ beforeEach(async () => {
   for (const collection of collections) {
     await collection.deleteMany({});
   }
-});
+};
 
-// Cleanup after all tests
-afterAll(async () => {
+// Close database connection
+export const closeDB = async () => {
   await mongoose.disconnect();
   await mongod.stop();
-});
+};
 
 // Global test utilities
 export const createTestToken = (userId: string) => {
