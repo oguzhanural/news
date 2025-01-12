@@ -92,10 +92,30 @@ const NewsSchema = new Schema<INews>({
   timestamps: true
 });
 
-// Create slug from title before saving
-NewsSchema.pre('save', function(next) {
+// Create unique slug from title before saving
+NewsSchema.pre('save', async function(next) {
   if (this.isModified('title')) {
-    this.slug = slugify(this.title, { lower: true });
+    let baseSlug = slugify(this.title, { lower: true });
+    let slug = baseSlug;
+    let counter = 1;
+    
+    // Keep trying until we find a unique slug
+    while (true) {
+      // Check if a document with this slug already exists (excluding current document)
+      const exists = await mongoose.models.News.exists({ 
+        _id: { $ne: this._id }, 
+        slug: slug 
+      });
+      
+      if (!exists) {
+        this.slug = slug;
+        break;
+      }
+      
+      // If exists, try with counter
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
   }
   next();
 });
