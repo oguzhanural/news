@@ -9,13 +9,15 @@ export interface ICategory extends Document {
 const CategorySchema = new Schema<ICategory>({
   name: {
     type: String,
-    required: true,
+    required: [true, 'Category name is required'],
     unique: true,
-    trim: true
+    trim: true,
+    index: true
   },
   slug: {
     type: String,
-    unique: true
+    unique: true,
+    index: true
   }
 }, {
   timestamps: true
@@ -24,9 +26,16 @@ const CategorySchema = new Schema<ICategory>({
 // Create slug from name before saving
 CategorySchema.pre('save', function(next) {
   if (this.isModified('name')) {
-    this.slug = slugify(this.name, { lower: true });
+    this.slug = slugify(this.name, { 
+      lower: true,
+      strict: true,
+      trim: true
+    });
   }
   next();
 });
+
+// Add compound index for better query performance
+CategorySchema.index({ name: 1, slug: 1 });
 
 export const Category = mongoose.model<ICategory>('Category', CategorySchema); 
