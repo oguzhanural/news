@@ -48,7 +48,7 @@ export const userResolver = {
 
         const currentUser = await User.findById(context.userId);
         if (currentUser?.role !== 'ADMIN') {
-          throw new GraphQLError('Admin access required', {
+          throw new GraphQLError('Not authorized', {
             extensions: { code: 'FORBIDDEN' }
           });
         }
@@ -83,7 +83,8 @@ export const userResolver = {
 
         const user = new User({
           ...input,
-          password: hashedPassword
+          password: hashedPassword,
+          role: input.role || 'JOURNALIST'
         });
         await user.save();
 
@@ -174,19 +175,37 @@ export const userResolver = {
           });
         }
 
-        // Only allow users to update their own profile or admin to update any profile
+        // Get current user
         const currentUser = await User.findById(context.userId);
-        if (context.userId !== id && currentUser?.role !== 'ADMIN') {
-          throw new GraphQLError('Not authorized to update this user', {
+        if (!currentUser) {
+          throw new GraphQLError('User not found', {
+            extensions: { code: 'NOT_FOUND' }
+          });
+        }
+
+        // Only allow users to update their own profile or admin to update any profile
+        if (context.userId !== id && currentUser.role !== 'ADMIN') {
+          throw new GraphQLError('Not authorized', {
             extensions: { code: 'FORBIDDEN' }
           });
         }
 
-        // Prevent non-admin users from updating their role
-        if (input.role && currentUser?.role !== 'ADMIN') {
-          throw new GraphQLError('Not authorized to update role', {
-            extensions: { code: 'FORBIDDEN' }
-          });
+        // Validate role updates
+        if (input.role) {
+          // Only admin can update roles
+          if (currentUser.role !== 'ADMIN') {
+            throw new GraphQLError('Not authorized to update role', {
+              extensions: { code: 'FORBIDDEN' }
+            });
+          }
+          
+          // Validate role enum value
+          const validRoles = ['EDITOR', 'JOURNALIST', 'ADMIN'];
+          if (!validRoles.includes(input.role)) {
+            throw new GraphQLError('Invalid role value', {
+              extensions: { code: 'BAD_USER_INPUT' }
+            });
+          }
         }
 
         // If password is being updated, hash it
@@ -196,19 +215,19 @@ export const userResolver = {
           updateData.password = await bcrypt.hash(input.password, salt);
         }
 
-        const user = await User.findByIdAndUpdate(
+        const updatedUser = await User.findByIdAndUpdate(
           id,
           { $set: updateData },
           { new: true, runValidators: true }
         ).select('-password');
 
-        if (!user) {
+        if (!updatedUser) {
           throw new GraphQLError('User not found', {
             extensions: { code: 'NOT_FOUND' }
           });
         }
 
-        return user;
+        return updatedUser;
       } catch (error: unknown) {
         if (error instanceof GraphQLError) {
           throw error;
@@ -237,7 +256,7 @@ export const userResolver = {
         // Only allow users to delete their own profile or admin to delete any profile
         const currentUser = await User.findById(context.userId);
         if (context.userId !== id && currentUser?.role !== 'ADMIN') {
-          throw new GraphQLError('Not authorized to delete this user', {
+          throw new GraphQLError('Not authorized', {
             extensions: { code: 'FORBIDDEN' }
           });
         }
@@ -248,6 +267,7 @@ export const userResolver = {
             extensions: { code: 'NOT_FOUND' }
           });
         }
+
         return true;
       } catch (error: unknown) {
         if (error instanceof GraphQLError) {
