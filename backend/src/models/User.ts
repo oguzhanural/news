@@ -12,29 +12,35 @@ export interface IUser extends Document {
 const UserSchema = new Schema<IUser>({
   name: {
     type: String,
-    required: true,
-    trim: true
+    required: [true, 'Name is required'],
+    trim: true,
+    index: true
   },
   email: {
     type: String,
-    required: true,
+    required: [true, 'Email is required'],
     unique: true,
     trim: true,
     lowercase: true,
+    index: true,
     validate: {
-      validator: (v: string) => /\S+@\S+\.\S+/.test(v),
+      validator: (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
       message: 'Please enter a valid email'
     }
   },
   password: {
     type: String,
-    required: true,
-    minlength: 6
+    required: [true, 'Password is required'],
+    minlength: [6, 'Password must be at least 6 characters']
   },
   role: {
     type: String,
-    enum: ['EDITOR', 'JOURNALIST', 'ADMIN'],
-    default: 'JOURNALIST'
+    enum: {
+      values: ['EDITOR', 'JOURNALIST', 'ADMIN'],
+      message: '{VALUE} is not a valid role'
+    },
+    default: 'JOURNALIST',
+    index: true
   }
 }, {
   timestamps: true
@@ -55,7 +61,15 @@ UserSchema.pre('save', async function(next) {
 
 // Method to compare password
 UserSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
-  return bcrypt.compare(candidatePassword, this.password);
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    return false;
+  }
 };
+
+// Add compound indexes for better query performance
+UserSchema.index({ email: 1, role: 1 });
+UserSchema.index({ name: 1, email: 1 });
 
 export const User = mongoose.model<IUser>('User', UserSchema); 
