@@ -6,20 +6,25 @@ let mongod: MongoMemoryServer;
 
 // Connect to the in-memory database
 export const connectDB = async () => {
-  mongod = await MongoMemoryServer.create();
-  const uri = mongod.getUri();
-  
-  // Set higher timeout and buffer options
-  const mongooseOpts = {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 30000,
-    socketTimeoutMS: 30000,
-    connectTimeoutMS: 30000,
-    maxPoolSize: 10
-  };
-
-  await mongoose.connect(uri, mongooseOpts);
+  try {
+    mongod = await MongoMemoryServer.create({
+      instance: {
+        dbName: 'jest'
+      }
+    });
+    const uri = mongod.getUri();
+    
+    await mongoose.connect(uri, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 10000,
+      family: 4
+    });
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
+  }
 };
 
 // Clear all data between tests
@@ -28,15 +33,22 @@ export const clearDB = async () => {
     throw new Error('Database not connected');
   }
   const collections = await mongoose.connection.db.collections();
-  for (const collection of collections) {
-    await collection.deleteMany({});
-  }
+  await Promise.all(
+    collections.map(collection => collection.deleteMany({}))
+  );
 };
 
 // Close database connection
 export const closeDB = async () => {
-  await mongoose.disconnect();
-  await mongod.stop();
+  try {
+    if (mongod) {
+      await mongoose.disconnect();
+      await mongod.stop();
+    }
+  } catch (error) {
+    console.error('Error closing database:', error);
+    throw error;
+  }
 };
 
 // Global test utilities
