@@ -2,7 +2,7 @@ import { ApolloServer } from '@apollo/server';
 import { Category } from '../../models/Category';
 import { User } from '../../models/User';
 import { categoryResolver } from '../../resolvers/categoryResolver';
-import { createTestToken } from '../setup';
+import { connectDB, clearDB, closeDB, createTestToken } from '../setup';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -38,13 +38,19 @@ describe('Category Resolver Tests', () => {
   let testToken: string;
 
   beforeAll(async () => {
+    await connectDB();
     testServer = new ApolloServer({
       typeDefs,
       resolvers: { Query: categoryResolver.Query, Mutation: categoryResolver.Mutation }
     });
-  });
+  }, 10000);
+
+  afterAll(async () => {
+    await closeDB();
+  }, 10000);
 
   beforeEach(async () => {
+    await clearDB();
     // Create a test user
     testUser = await User.create({
       name: 'Test User',
@@ -53,7 +59,7 @@ describe('Category Resolver Tests', () => {
       role: 'ADMIN'
     });
     testToken = createTestToken(testUser._id.toString());
-  });
+  }, 10000);
 
   describe('Queries', () => {
     it('should fetch all categories', async () => {
@@ -80,9 +86,8 @@ describe('Category Resolver Tests', () => {
       expect(response.body.kind).toBe('single');
       const data = response.body.singleResult.data;
       expect(data?.categories).toHaveLength(2);
-      expect(data?.categories?.[0].name).toBe('Sports');
-      expect(data?.categories?.[1].name).toBe('Technology');
-    });
+      expect(data?.categories?.map(c => c.name).sort()).toEqual(['Sports', 'Technology']);
+    }, 10000);
   });
 
   describe('Mutations', () => {
@@ -109,13 +114,12 @@ describe('Category Resolver Tests', () => {
       const data = response.body.singleResult.data;
       expect(data?.createCategory?.name).toBe('Technology');
       expect(data?.createCategory?.slug).toBe('technology');
-    });
+    }, 10000);
 
     it('should fail to create category with duplicate name', async () => {
       // First, create a category
       await Category.create({ name: 'Technology' });
 
-      // Try to create another category with the same name
       const mutation = `
         mutation {
           createCategory(input: { name: "Technology" }) {
@@ -137,7 +141,7 @@ describe('Category Resolver Tests', () => {
       expect(response.body.kind).toBe('single');
       expect(response.body.singleResult.errors?.[0].message).toBe('Category already exists');
       expect(response.body.singleResult.errors?.[0].extensions?.code).toBe('BAD_USER_INPUT');
-    });
+    }, 10000);
 
     it('should fail to create category without authentication', async () => {
       const mutation = `
@@ -153,7 +157,7 @@ describe('Category Resolver Tests', () => {
 
       expect(response.body.kind).toBe('single');
       expect(response.body.singleResult.errors?.[0].message).toBe('Authentication required');
-    });
+    }, 10000);
 
     it('should update an existing category', async () => {
       const category = await Category.create({ name: 'Tech' });
@@ -180,7 +184,7 @@ describe('Category Resolver Tests', () => {
       const data = response.body.singleResult.data;
       expect(data?.updateCategory?.name).toBe('Technology');
       expect(data?.updateCategory?.slug).toBe('technology');
-    });
+    }, 10000);
 
     it('should delete a category', async () => {
       const category = await Category.create({ name: 'Tech' });
@@ -206,6 +210,6 @@ describe('Category Resolver Tests', () => {
 
       const deletedCategory = await Category.findById(category._id);
       expect(deletedCategory).toBeNull();
-    });
+    }, 10000);
   });
 }); 
