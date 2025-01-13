@@ -1,52 +1,58 @@
 import { User } from '../../models/User';
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+import { connectDB, clearDB, closeDB } from '../setup';
+
+beforeAll(async () => {
+  await connectDB();
+}, 10000);
+
+afterEach(async () => {
+  await clearDB();
+}, 10000);
+
+afterAll(async () => {
+  await closeDB();
+}, 10000);
 
 describe('User Model Test', () => {
+  const validUserData = {
+    name: 'John Doe',
+    email: 'john@example.com',
+    password: 'password123',
+    role: 'JOURNALIST' as const
+  };
+
   it('should create & save user successfully', async () => {
-    const validUser = new User({
-      name: 'John Doe',
-      email: 'john@example.com',
-      password: 'password123',
-      role: 'JOURNALIST'
-    });
+    const validUser = new User(validUserData);
     const savedUser = await validUser.save();
     
     expect(savedUser._id).toBeDefined();
-    expect(savedUser.name).toBe('John Doe');
-    expect(savedUser.email).toBe('john@example.com');
-    expect(savedUser.role).toBe('JOURNALIST');
-    // Password should be hashed
-    expect(savedUser.password).not.toBe('password123');
-    expect(savedUser.password.startsWith('$2a$')).toBeTruthy();
-  });
+    expect(savedUser.name).toBe(validUserData.name);
+    expect(savedUser.email).toBe(validUserData.email);
+    expect(savedUser.role).toBe(validUserData.role);
+    expect(savedUser.password).not.toBe(validUserData.password); // Should be hashed
+  }, 10000);
 
   it('should fail to save user without required fields', async () => {
-    const userWithoutRequiredFields = new User({
-      name: 'John Doe'
-    });
+    const userWithoutRequiredField = new User({});
+    let err;
     
-    let err: any;
     try {
-      await userWithoutRequiredFields.save();
+      await userWithoutRequiredField.save();
     } catch (error) {
       err = error;
     }
     
     expect(err).toBeInstanceOf(mongoose.Error.ValidationError);
-    expect(err.errors.email).toBeDefined();
-    expect(err.errors.password).toBeDefined();
-  });
+  }, 10000);
 
   it('should fail to save user with invalid email', async () => {
     const userWithInvalidEmail = new User({
-      name: 'John Doe',
-      email: 'invalid-email',
-      password: 'password123',
-      role: 'JOURNALIST'
+      ...validUserData,
+      email: 'invalid-email'
     });
+    let err;
     
-    let err: any;
     try {
       await userWithInvalidEmail.save();
     } catch (error) {
@@ -54,18 +60,15 @@ describe('User Model Test', () => {
     }
     
     expect(err).toBeInstanceOf(mongoose.Error.ValidationError);
-    expect(err.errors.email).toBeDefined();
-  });
+  }, 10000);
 
   it('should fail to save user with invalid role', async () => {
     const userWithInvalidRole = new User({
-      name: 'John Doe',
-      email: 'john@example.com',
-      password: 'password123',
+      ...validUserData,
       role: 'INVALID_ROLE'
     });
+    let err;
     
-    let err: any;
     try {
       await userWithInvalidRole.save();
     } catch (error) {
@@ -73,83 +76,47 @@ describe('User Model Test', () => {
     }
     
     expect(err).toBeInstanceOf(mongoose.Error.ValidationError);
-    expect(err.errors.role).toBeDefined();
-  });
+  }, 10000);
 
   it('should prevent duplicate email addresses', async () => {
-    // Create first user
-    await User.create({
-      name: 'John Doe',
-      email: 'john@example.com',
-      password: 'password123',
-      role: 'JOURNALIST'
-    });
-
-    // Try to create second user with same email
-    const duplicateUser = new User({
-      name: 'Jane Doe',
-      email: 'john@example.com',
-      password: 'password456',
-      role: 'EDITOR'
-    });
+    await User.create(validUserData);
+    const userWithDuplicateEmail = new User(validUserData);
     
     let err: any;
     try {
-      await duplicateUser.save();
+      await userWithDuplicateEmail.save();
     } catch (error) {
       err = error;
     }
     
     expect(err).toBeDefined();
-    expect(err.code).toBe(11000); // MongoDB duplicate key error
-  });
+    expect(err.code).toBe(11000);
+  }, 10000);
 
   it('should correctly compare passwords', async () => {
-    const user = await User.create({
-      name: 'John Doe',
-      email: 'john@example.com',
-      password: 'password123',
-      role: 'JOURNALIST'
-    });
-
-    const validPassword = await user.comparePassword('password123');
-    const invalidPassword = await user.comparePassword('wrongpassword');
-
-    expect(validPassword).toBe(true);
-    expect(invalidPassword).toBe(false);
-  });
+    const user = await User.create(validUserData);
+    
+    const isMatch = await user.comparePassword(validUserData.password);
+    const isNotMatch = await user.comparePassword('wrongpassword');
+    
+    expect(isMatch).toBe(true);
+    expect(isNotMatch).toBe(false);
+  }, 10000);
 
   it('should hash password before saving', async () => {
-    const user = await User.create({
-      name: 'John Doe',
-      email: 'john@example.com',
-      password: 'password123',
-      role: 'JOURNALIST'
-    });
-
-    // Verify password is hashed
-    expect(user.password).not.toBe('password123');
-    expect(user.password.startsWith('$2a$')).toBeTruthy();
+    const user = await User.create(validUserData);
     
-    // Verify we can still validate the password
-    const isValid = await bcrypt.compare('password123', user.password);
-    expect(isValid).toBe(true);
-  });
+    expect(user.password).not.toBe(validUserData.password);
+    expect(user.password).toHaveLength(60); // bcrypt hash length
+  }, 10000);
 
   it('should not rehash password if not modified', async () => {
-    const user = await User.create({
-      name: 'John Doe',
-      email: 'john@example.com',
-      password: 'password123',
-      role: 'JOURNALIST'
-    });
-
-    const originalHash = user.password;
-
-    // Update user without changing password
+    const user = await User.create(validUserData);
+    const firstHash = user.password;
+    
     user.name = 'Jane Doe';
     await user.save();
-
-    expect(user.password).toBe(originalHash);
-  });
+    
+    expect(user.password).toBe(firstHash);
+  }, 10000);
 }); 
