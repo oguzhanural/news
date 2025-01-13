@@ -1,5 +1,18 @@
 import { Category } from '../../models/Category';
 import mongoose from 'mongoose';
+import { connectDB, clearDB, closeDB } from '../setup';
+
+beforeAll(async () => {
+  await connectDB();
+}, 10000);
+
+afterEach(async () => {
+  await clearDB();
+}, 10000);
+
+afterAll(async () => {
+  await closeDB();
+}, 10000);
 
 describe('Category Model Test', () => {
   it('should create & save category successfully', async () => {
