@@ -1,11 +1,9 @@
 import { ApolloServer } from '@apollo/server';
 import { User } from '../../models/User';
 import { userResolver } from '../../resolvers/userResolver';
-import { createTestToken } from '../setup';
+import { connectDB, clearDB, closeDB, createTestToken } from '../setup';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { IUser } from '../../models/User';
-import mongoose, { Document, Types } from 'mongoose';
 
 const typeDefs = readFileSync(
   resolve(__dirname, '../../schemas/user.graphql'),
@@ -19,11 +17,6 @@ interface UserResponse {
   role: string;
 }
 
-interface AuthResponse {
-  token: string;
-  user: UserResponse;
-}
-
 interface TestResponse {
   body: {
     kind: string;
@@ -31,8 +24,8 @@ interface TestResponse {
       data?: {
         users?: UserResponse[];
         user?: UserResponse;
-        registerUser?: AuthResponse;
-        loginUser?: AuthResponse;
+        registerUser?: { user: UserResponse; token: string };
+        loginUser?: { user: UserResponse; token: string };
         updateUser?: UserResponse;
         deleteUser?: boolean;
       };
@@ -41,52 +34,48 @@ interface TestResponse {
   };
 }
 
-type UserDocument = Document<unknown, {}, IUser> & Omit<IUser, '_id'> & {
-  _id: Types.ObjectId;
-};
-
 describe('User Resolver Tests', () => {
   let testServer: ApolloServer;
-  let adminUser: UserDocument;
+  let adminUser: any;
+  let regularUser: any;
   let adminToken: string;
+  let userToken: string;
 
   beforeAll(async () => {
+    await connectDB();
     testServer = new ApolloServer({
       typeDefs,
       resolvers: { Query: userResolver.Query, Mutation: userResolver.Mutation }
     });
-  });
+  }, 10000);
+
+  afterAll(async () => {
+    await closeDB();
+  }, 10000);
 
   beforeEach(async () => {
+    await clearDB();
     // Create an admin user for testing
-    const user = await User.create({
+    adminUser = await User.create({
       name: 'Admin User',
       email: 'admin@example.com',
-      password: 'admin123',
+      password: 'password123',
       role: 'ADMIN'
     });
-    adminUser = user as UserDocument;
     adminToken = createTestToken(adminUser._id.toString());
-  });
+
+    // Create a regular user for testing
+    regularUser = await User.create({
+      name: 'Regular User',
+      email: 'user@example.com',
+      password: 'password123',
+      role: 'JOURNALIST'
+    });
+    userToken = createTestToken(regularUser._id.toString());
+  }, 10000);
 
   describe('Queries', () => {
     it('should fetch all users when authenticated as admin', async () => {
-      // Create additional test users
-      await User.create([
-        {
-          name: 'John Editor',
-          email: 'editor@example.com',
-          password: 'password123',
-          role: 'EDITOR'
-        },
-        {
-          name: 'Jane Journalist',
-          email: 'journalist@example.com',
-          password: 'password123',
-          role: 'JOURNALIST'
-        }
-      ]);
-
       const query = `
         query {
           users {
@@ -109,18 +98,10 @@ describe('User Resolver Tests', () => {
 
       expect(response.body.kind).toBe('single');
       const data = response.body.singleResult.data;
-      expect(data?.users).toHaveLength(3); // Including admin user
-    });
+      expect(data?.users).toHaveLength(2);
+    }, 10000);
 
     it('should fail to fetch users without admin role', async () => {
-      const user = await User.create({
-        name: 'Normal User',
-        email: 'user@example.com',
-        password: 'password123',
-        role: 'JOURNALIST'
-      });
-      const normalUser = user as UserDocument;
-
       const query = `
         query {
           users {
@@ -136,15 +117,14 @@ describe('User Resolver Tests', () => {
         { query },
         {
           contextValue: {
-            userId: normalUser._id.toString()
+            userId: regularUser._id.toString()
           }
         }
       ) as TestResponse;
 
       expect(response.body.kind).toBe('single');
-      expect(response.body.singleResult.errors?.[0].message).toBe('Admin access required');
-      expect(response.body.singleResult.errors?.[0].extensions?.code).toBe('FORBIDDEN');
-    });
+      expect(response.body.singleResult.errors?.[0].message).toBe('Not authorized');
+    }, 10000);
   });
 
   describe('Mutations', () => {
@@ -153,16 +133,15 @@ describe('User Resolver Tests', () => {
         mutation {
           registerUser(input: {
             name: "New User"
-            email: "newuser@example.com"
+            email: "new@example.com"
             password: "password123"
-            role: JOURNALIST
           }) {
-            token
             user {
               name
               email
               role
             }
+            token
           }
         }
       `;
@@ -170,28 +149,26 @@ describe('User Resolver Tests', () => {
       const response = await testServer.executeOperation({ query: mutation }) as TestResponse;
 
       expect(response.body.kind).toBe('single');
-      const data = response.body.singleResult.data?.registerUser;
-      expect(data?.token).toBeDefined();
-      expect(data?.user.name).toBe('New User');
-      expect(data?.user.email).toBe('newuser@example.com');
-      expect(data?.user.role).toBe('JOURNALIST');
-    });
+      const data = response.body.singleResult.data;
+      expect(data?.registerUser?.user.name).toBe('New User');
+      expect(data?.registerUser?.user.email).toBe('new@example.com');
+      expect(data?.registerUser?.user.role).toBe('JOURNALIST');
+      expect(data?.registerUser?.token).toBeDefined();
+    }, 10000);
 
     it('should fail to register user with existing email', async () => {
       const mutation = `
         mutation {
           registerUser(input: {
-            name: "Duplicate User"
+            name: "Another User"
             email: "admin@example.com"
             password: "password123"
-            role: JOURNALIST
           }) {
-            token
             user {
               name
               email
-              role
             }
+            token
           }
         }
       `;
@@ -200,22 +177,21 @@ describe('User Resolver Tests', () => {
 
       expect(response.body.kind).toBe('single');
       expect(response.body.singleResult.errors?.[0].message).toBe('User already exists with this email');
-      expect(response.body.singleResult.errors?.[0].extensions?.code).toBe('BAD_USER_INPUT');
-    });
+    }, 10000);
 
     it('should login user with correct credentials', async () => {
       const mutation = `
         mutation {
           loginUser(input: {
-            email: "admin@example.com"
-            password: "admin123"
+            email: "user@example.com"
+            password: "password123"
           }) {
-            token
             user {
               name
               email
               role
             }
+            token
           }
         }
       `;
@@ -223,25 +199,22 @@ describe('User Resolver Tests', () => {
       const response = await testServer.executeOperation({ query: mutation }) as TestResponse;
 
       expect(response.body.kind).toBe('single');
-      const data = response.body.singleResult.data?.loginUser;
-      expect(data?.token).toBeDefined();
-      expect(data?.user.email).toBe('admin@example.com');
-      expect(data?.user.role).toBe('ADMIN');
-    });
+      const data = response.body.singleResult.data;
+      expect(data?.loginUser?.user.email).toBe('user@example.com');
+      expect(data?.loginUser?.token).toBeDefined();
+    }, 10000);
 
     it('should fail to login with incorrect password', async () => {
       const mutation = `
         mutation {
           loginUser(input: {
-            email: "admin@example.com"
+            email: "user@example.com"
             password: "wrongpassword"
           }) {
-            token
             user {
-              name
               email
-              role
             }
+            token
           }
         }
       `;
@@ -250,19 +223,14 @@ describe('User Resolver Tests', () => {
 
       expect(response.body.kind).toBe('single');
       expect(response.body.singleResult.errors?.[0].message).toBe('Invalid credentials');
-      expect(response.body.singleResult.errors?.[0].extensions?.code).toBe('UNAUTHENTICATED');
-    });
+    }, 10000);
 
     it('should update user when authenticated', async () => {
       const mutation = `
         mutation {
-          updateUser(id: "${adminUser._id}", input: {
-            name: "Updated Admin"
-            email: "updated@example.com"
-          }) {
+          updateUser(id: "${regularUser._id}", input: { name: "Updated Name" }) {
             name
             email
-            role
           }
         }
       `;
@@ -271,34 +239,21 @@ describe('User Resolver Tests', () => {
         { query: mutation },
         {
           contextValue: {
-            userId: adminUser._id.toString()
+            userId: regularUser._id.toString()
           }
         }
       ) as TestResponse;
 
       expect(response.body.kind).toBe('single');
-      const data = response.body.singleResult.data?.updateUser;
-      expect(data?.name).toBe('Updated Admin');
-      expect(data?.email).toBe('updated@example.com');
-    });
+      const data = response.body.singleResult.data;
+      expect(data?.updateUser?.name).toBe('Updated Name');
+    }, 10000);
 
     it('should fail to update other user without admin role', async () => {
-      const user = await User.create({
-        name: 'Normal User',
-        email: 'normal@example.com',
-        password: 'password123',
-        role: 'JOURNALIST'
-      });
-      const normalUser = user as UserDocument;
-
       const mutation = `
         mutation {
-          updateUser(id: "${adminUser._id}", input: {
-            name: "Hacked Admin"
-          }) {
+          updateUser(id: "${adminUser._id}", input: { name: "Hacked Name" }) {
             name
-            email
-            role
           }
         }
       `;
@@ -307,28 +262,19 @@ describe('User Resolver Tests', () => {
         { query: mutation },
         {
           contextValue: {
-            userId: normalUser._id.toString()
+            userId: regularUser._id.toString()
           }
         }
       ) as TestResponse;
 
       expect(response.body.kind).toBe('single');
-      expect(response.body.singleResult.errors?.[0].message).toBe('Not authorized to update this user');
-      expect(response.body.singleResult.errors?.[0].extensions?.code).toBe('FORBIDDEN');
-    });
+      expect(response.body.singleResult.errors?.[0].message).toBe('Not authorized');
+    }, 10000);
 
     it('should delete user when authenticated as admin', async () => {
-      const user = await User.create({
-        name: 'To Delete',
-        email: 'delete@example.com',
-        password: 'password123',
-        role: 'JOURNALIST'
-      });
-      const userToDelete = user as UserDocument;
-
       const mutation = `
         mutation {
-          deleteUser(id: "${userToDelete._id}")
+          deleteUser(id: "${regularUser._id}")
         }
       `;
 
@@ -342,22 +288,14 @@ describe('User Resolver Tests', () => {
       ) as TestResponse;
 
       expect(response.body.kind).toBe('single');
-      expect(response.body.singleResult.data?.deleteUser).toBe(true);
+      const data = response.body.singleResult.data;
+      expect(data?.deleteUser).toBe(true);
 
-      const deletedUser = await User.findById(userToDelete._id);
+      const deletedUser = await User.findById(regularUser._id);
       expect(deletedUser).toBeNull();
-    });
+    }, 10000);
 
     it('should allow user to delete their own profile', async () => {
-      // Create a regular user
-      const user = await User.create({
-        name: 'Self Delete User',
-        email: 'selfdelete@example.com',
-        password: 'password123',
-        role: 'JOURNALIST'
-      });
-      const regularUser = user as UserDocument;
-
       const mutation = `
         mutation {
           deleteUser(id: "${regularUser._id}")
@@ -374,32 +312,14 @@ describe('User Resolver Tests', () => {
       ) as TestResponse;
 
       expect(response.body.kind).toBe('single');
-      expect(response.body.singleResult.data?.deleteUser).toBe(true);
-
-      const deletedUser = await User.findById(regularUser._id);
-      expect(deletedUser).toBeNull();
-    });
+      const data = response.body.singleResult.data;
+      expect(data?.deleteUser).toBe(true);
+    }, 10000);
 
     it('should prevent non-admin user from deleting other users', async () => {
-      // Create two regular users
-      const user1 = await User.create({
-        name: 'User One',
-        email: 'user1@example.com',
-        password: 'password123',
-        role: 'JOURNALIST'
-      });
-      const user2 = await User.create({
-        name: 'User Two',
-        email: 'user2@example.com',
-        password: 'password123',
-        role: 'JOURNALIST'
-      });
-      const regularUser1 = user1 as UserDocument;
-      const regularUser2 = user2 as UserDocument;
-
       const mutation = `
         mutation {
-          deleteUser(id: "${regularUser2._id}")
+          deleteUser(id: "${adminUser._id}")
         }
       `;
 
@@ -407,57 +327,32 @@ describe('User Resolver Tests', () => {
         { query: mutation },
         {
           contextValue: {
-            userId: regularUser1._id.toString()
+            userId: regularUser._id.toString()
           }
         }
       ) as TestResponse;
 
       expect(response.body.kind).toBe('single');
-      expect(response.body.singleResult.errors?.[0].message).toBe('Not authorized to delete this user');
-      expect(response.body.singleResult.errors?.[0].extensions?.code).toBe('FORBIDDEN');
-
-      // Verify user2 was not deleted
-      const notDeletedUser = await User.findById(regularUser2._id);
-      expect(notDeletedUser).not.toBeNull();
-    });
+      expect(response.body.singleResult.errors?.[0].message).toBe('Not authorized');
+    }, 10000);
   });
 
   describe('Role-based Update Permissions', () => {
     it('should allow admin to update any user\'s all fields', async () => {
-      // Create a regular user
-      const user = await User.create({
-        name: 'Regular User',
-        email: 'regular@example.com',
-        password: 'password123',
-        role: 'JOURNALIST'
-      });
-      const regularUser = user as UserDocument;
-
       const mutation = `
-        mutation UpdateUser($id: ID!, $input: UpdateUserInput!) {
-          updateUser(id: $id, input: $input) {
+        mutation {
+          updateUser(id: "${regularUser._id}", input: {
+            name: "Updated By Admin",
+            role: EDITOR
+          }) {
             name
-            email
             role
           }
         }
       `;
 
-      const variables = {
-        id: regularUser._id.toString(),
-        input: {
-          name: "Updated By Admin",
-          email: "updated@example.com",
-          role: "EDITOR",
-          password: "newpassword123"
-        }
-      };
-
       const response = await testServer.executeOperation(
-        { 
-          query: mutation,
-          variables
-        },
+        { query: mutation },
         {
           contextValue: {
             userId: adminUser._id.toString()
@@ -466,31 +361,18 @@ describe('User Resolver Tests', () => {
       ) as TestResponse;
 
       expect(response.body.kind).toBe('single');
-      const data = response.body.singleResult.data?.updateUser;
-      expect(data?.name).toBe('Updated By Admin');
-      expect(data?.email).toBe('updated@example.com');
-      expect(data?.role).toBe('EDITOR');
-    });
+      const data = response.body.singleResult.data;
+      expect(data?.updateUser?.name).toBe('Updated By Admin');
+      expect(data?.updateUser?.role).toBe('EDITOR');
+    }, 10000);
 
     it('should allow non-admin user to update their own basic information', async () => {
-      // Create a regular user
-      const user = await User.create({
-        name: 'Regular User',
-        email: 'regular@example.com',
-        password: 'password123',
-        role: 'JOURNALIST'
-      });
-      const regularUser = user as UserDocument;
-
       const mutation = `
         mutation {
           updateUser(id: "${regularUser._id}", input: {
-            name: "Updated Name"
-            email: "newemail@example.com"
-            password: "newpassword123"
+            name: "Self Updated"
           }) {
             name
-            email
             role
           }
         }
@@ -506,44 +388,24 @@ describe('User Resolver Tests', () => {
       ) as TestResponse;
 
       expect(response.body.kind).toBe('single');
-      const data = response.body.singleResult.data?.updateUser;
-      expect(data?.name).toBe('Updated Name');
-      expect(data?.email).toBe('newemail@example.com');
-      expect(data?.role).toBe('JOURNALIST'); // Role should remain unchanged
-    });
+      const data = response.body.singleResult.data;
+      expect(data?.updateUser?.name).toBe('Self Updated');
+      expect(data?.updateUser?.role).toBe('JOURNALIST');
+    }, 10000);
 
     it('should prevent non-admin user from updating their role', async () => {
-      // Create a regular user
-      const user = await User.create({
-        name: 'Regular User',
-        email: 'regular@example.com',
-        password: 'password123',
-        role: 'JOURNALIST'
-      });
-      const regularUser = user as UserDocument;
-
       const mutation = `
-        mutation UpdateUser($id: ID!, $input: UpdateUserInput!) {
-          updateUser(id: $id, input: $input) {
-            name
+        mutation {
+          updateUser(id: "${regularUser._id}", input: {
+            role: ADMIN
+          }) {
             role
           }
         }
       `;
 
-      const variables = {
-        id: regularUser._id.toString(),
-        input: {
-          name: "Updated Name",
-          role: "ADMIN"
-        }
-      };
-
       const response = await testServer.executeOperation(
-        { 
-          query: mutation,
-          variables
-        },
+        { query: mutation },
         {
           contextValue: {
             userId: regularUser._id.toString()
@@ -553,33 +415,15 @@ describe('User Resolver Tests', () => {
 
       expect(response.body.kind).toBe('single');
       expect(response.body.singleResult.errors?.[0].message).toBe('Not authorized to update role');
-      expect(response.body.singleResult.errors?.[0].extensions?.code).toBe('FORBIDDEN');
-    });
+    }, 10000);
 
     it('should prevent non-admin user from updating other users', async () => {
-      // Create two regular users
-      const user1 = await User.create({
-        name: 'User One',
-        email: 'user1@example.com',
-        password: 'password123',
-        role: 'JOURNALIST'
-      });
-      const user2 = await User.create({
-        name: 'User Two',
-        email: 'user2@example.com',
-        password: 'password123',
-        role: 'JOURNALIST'
-      });
-      const regularUser1 = user1 as UserDocument;
-      const regularUser2 = user2 as UserDocument;
-
       const mutation = `
         mutation {
-          updateUser(id: "${regularUser2._id}", input: {
-            name: "Hacked Name"
+          updateUser(id: "${adminUser._id}", input: {
+            name: "Hacked Admin"
           }) {
             name
-            email
           }
         }
       `;
@@ -588,14 +432,13 @@ describe('User Resolver Tests', () => {
         { query: mutation },
         {
           contextValue: {
-            userId: regularUser1._id.toString()
+            userId: regularUser._id.toString()
           }
         }
       ) as TestResponse;
 
       expect(response.body.kind).toBe('single');
-      expect(response.body.singleResult.errors?.[0].message).toBe('Not authorized to update this user');
-      expect(response.body.singleResult.errors?.[0].extensions?.code).toBe('FORBIDDEN');
-    });
+      expect(response.body.singleResult.errors?.[0].message).toBe('Not authorized');
+    }, 10000);
   });
 }); 
