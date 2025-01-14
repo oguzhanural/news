@@ -20,6 +20,8 @@ A modern news website built with Next.js frontend and Node.js TypeScript backend
 - Express.js
 - JWT Authentication
 - BCrypt for password hashing
+- Jest for testing
+- In-memory MongoDB for testing
 
 ## Project Structure
 
@@ -52,6 +54,10 @@ A modern news website built with Next.js frontend and Node.js TypeScript backend
 │   │   └── scripts/        # Utility scripts
 │   │       ├── seed.ts     # Database seeding
 │   │       └── updatePassword.ts # Password update utility
+│   ├── __tests__/          # Test files
+│   │   ├── models/         # Model tests
+│   │   ├── resolvers/      # Resolver tests
+│   │   └── README.md       # Test documentation
 │   └── package.json
 ```
 
@@ -62,21 +68,38 @@ A modern news website built with Next.js frontend and Node.js TypeScript backend
   - JWT-based authentication
   - Password hashing with BCrypt
   - Role-based authorization (ADMIN, EDITOR, JOURNALIST)
+  - Secure password storage and validation
+  - Token-based session management
   
 - [x] News Management
   - CRUD operations for news articles
   - Category management
   - Status tracking (DRAFT, PUBLISHED, ARCHIVED)
   - Tags support
+  - Slug generation for SEO-friendly URLs
+  - Multiple image support with main image designation
   
 - [x] User Management
   - User registration and login
   - Profile management
   - Role-based access control
+  - Email validation
+  - Password strength requirements
+  - Profile updates with role protection
   
 - [x] Category System
   - Category CRUD operations
   - News article categorization
+  - Slug generation for categories
+  - Duplicate category prevention
+  
+- [x] Testing Infrastructure
+  - Comprehensive test suite
+  - Model validation tests
+  - Resolver operation tests
+  - Authentication tests
+  - Authorization tests
+  - In-memory database for testing
 
 ### Planned Features
 - [ ] Frontend Implementation
@@ -85,6 +108,11 @@ A modern news website built with Next.js frontend and Node.js TypeScript backend
 - [ ] Image Upload
 - [ ] Rich Text Editor
 - [ ] Analytics Dashboard
+- [ ] Email Notifications
+- [ ] Social Media Integration
+- [ ] Content Moderation System
+- [ ] API Rate Limiting
+- [ ] Caching Layer
 
 ## Getting Started
 
@@ -242,19 +270,66 @@ mutation {
 
 The API implements consistent error handling with specific error codes:
 - UNAUTHENTICATED: Authentication issues
+  - Invalid credentials
+  - Missing or expired tokens
+  - Invalid token format
 - FORBIDDEN: Authorization issues
+  - Insufficient permissions
+  - Role-based access violations
+  - Resource ownership conflicts
 - NOT_FOUND: Resource not found
+  - Invalid IDs
+  - Deleted resources
+  - Non-existent endpoints
 - BAD_USER_INPUT: Invalid input data
+  - Validation failures
+  - Duplicate entries
+  - Format violations
 - INTERNAL_SERVER_ERROR: Server-side issues
+
+## Testing
+
+### Running Tests
+```bash
+# Run all tests
+npm test
+
+# Run specific test suite
+npm test -- user.test.ts
+
+# Run tests with coverage
+npm test -- --coverage
+```
+
+### Test Coverage
+The project maintains high test coverage across critical components:
+- Models: Data validation, relationships, and methods
+- Resolvers: GraphQL operations and error handling
+- Authentication: User security and token management
+- Authorization: Role-based access control
+- Error Handling: Proper error responses
+
+Detailed test documentation can be found in `backend/src/__tests__/README.md`
 
 ## Security Considerations
 
 - Passwords are hashed using BCrypt
 - JWT tokens for authentication
+  - Short expiration times
+  - Secure token storage
+  - Token refresh mechanism
 - Role-based access control
+  - Granular permissions
+  - Resource-level access control
 - Input validation and sanitization
+  - GraphQL input validation
+  - Data type checking
+  - XSS prevention
 - MongoDB injection prevention
 - CORS configuration
+- Rate limiting (planned)
+- Security headers
+- Regular dependency updates
 
 ## Contributing
 
