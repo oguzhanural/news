@@ -105,6 +105,16 @@ A modern news website built with Next.js frontend and Node.js TypeScript backend
 - [ ] Frontend Implementation
 - [ ] Comments System
 - [ ] Search Functionality
+  - Full-text search across news articles
+  - Advanced filtering options (by date, category, author)
+  - Real-time search suggestions
+  - Search within specific fields (title, content, tags)
+  - Relevance-based sorting
+  - Search history tracking
+  - Popular searches analytics
+  - Category-specific search
+  - Multi-language search support
+  - Fuzzy search for typo tolerance
 - [ ] Image Upload
 - [ ] Rich Text Editor
 - [ ] Analytics Dashboard
