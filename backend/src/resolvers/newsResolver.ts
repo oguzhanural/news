@@ -2,6 +2,7 @@ import { News } from '../models/News';
 import { Category } from '../models/Category';
 import { User } from '../models/User';
 import { GraphQLError } from 'graphql';
+import mongoose from 'mongoose';
 
 interface Image {
   url: string;
@@ -33,6 +34,17 @@ interface UpdateNewsInput {
 interface NewsUpdateData extends UpdateNewsInput {
   publishDate?: string;
   updatedAt: string;
+}
+
+interface SearchNewsInput {
+  query: string;
+  status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  categoryId?: string;
+  tags?: string[];
+  fromDate?: string;
+  toDate?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export const newsResolver = {
@@ -89,6 +101,79 @@ export const newsResolver = {
         return news;
       } catch (error: unknown) {
         throw new GraphQLError('Error fetching news list', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+
+    searchNews: async (_: any, { input }: { input: SearchNewsInput }) => {
+      try {
+        const { 
+          query, 
+          status, 
+          categoryId, 
+          tags, 
+          fromDate, 
+          toDate, 
+          limit = 10, 
+          offset = 0 
+        } = input;
+
+        // Build search criteria
+        const searchCriteria: any = {
+          $text: { $search: query }
+        };
+
+        // Add filters if provided
+        if (status) {
+          searchCriteria.status = status;
+        }
+
+        if (categoryId) {
+          searchCriteria.category = new mongoose.Types.ObjectId(categoryId);
+        }
+
+        if (tags && tags.length > 0) {
+          searchCriteria.tags = { $in: tags };
+        }
+
+        if (fromDate || toDate) {
+          searchCriteria.createdAt = {};
+          if (fromDate) {
+            searchCriteria.createdAt.$gte = new Date(fromDate);
+          }
+          if (toDate) {
+            searchCriteria.createdAt.$lte = new Date(toDate);
+          }
+        }
+
+        // Execute search query
+        const [news, total] = await Promise.all([
+          News.find(
+            searchCriteria,
+            { score: { $meta: 'textScore' } }
+          )
+            .sort({ score: { $meta: 'textScore' } })
+            .skip(offset)
+            .limit(limit + 1) // Get one extra to check if there are more results
+            .populate('author')
+            .populate('category'),
+          News.countDocuments(searchCriteria)
+        ]);
+
+        // Check if there are more results
+        const hasMore = news.length > limit;
+        if (hasMore) {
+          news.pop(); // Remove the extra item we fetched
+        }
+
+        return {
+          news,
+          total,
+          hasMore
+        };
+      } catch (error: any) {
+        throw new GraphQLError(`Error searching news: ${error.message}`, {
           extensions: { code: 'INTERNAL_SERVER_ERROR' }
         });
       }

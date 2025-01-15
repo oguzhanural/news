@@ -55,7 +55,8 @@ describe('News Model Tests', () => {
     expect(news._id).toBeDefined();
     expect(news.slug).toBe('test-news-article');
     expect(news.status).toBe('DRAFT');
-    expect(news.publishDate).toBeNull();
+    expect(news.createdAt).toBeDefined();
+    expect(news.updatedAt).toBeDefined();
   });
 
   it('should require at least one image', async () => {

@@ -1,42 +1,21 @@
 type News {
   id: ID!
   title: String!
-  slug: String!
   content: String!
   summary: String!
-  images: [Image!]!
-  category: Category!
+  slug: String!
   author: User!
-  publishDate: String
+  category: Category!
+  status: NewsStatus!
+  tags: [String!]!
+  images: [NewsImage!]!
   createdAt: String!
   updatedAt: String!
-  status: NewsStatus!
-  tags: [String!]
 }
 
-type Image {
+type NewsImage {
   url: String!
-  caption: String
   isMain: Boolean!
-}
-
-type Category {
-  id: ID!
-  name: String!
-  slug: String!
-}
-
-type User {
-  id: ID!
-  name: String!
-  email: String!
-  role: UserRole!
-}
-
-enum UserRole {
-  EDITOR
-  JOURNALIST
-  ADMIN
 }
 
 enum NewsStatus {
@@ -45,45 +24,61 @@ enum NewsStatus {
   ARCHIVED
 }
 
-input ImageInput {
-  url: String!
-  caption: String
-  isMain: Boolean!
-}
-
 input CreateNewsInput {
   title: String!
   content: String!
   summary: String!
-  images: [ImageInput!]!
   categoryId: ID!
-  status: NewsStatus!
-  tags: [String!]
+  tags: [String!]!
+  images: [NewsImageInput!]!
 }
 
 input UpdateNewsInput {
+  id: ID!
   title: String
   content: String
   summary: String
-  images: [ImageInput!]
   categoryId: ID
   status: NewsStatus
   tags: [String!]
+  images: [NewsImageInput!]
+}
+
+input NewsImageInput {
+  url: String!
+  isMain: Boolean!
+}
+
+input SearchNewsInput {
+  query: String!
+  status: NewsStatus
+  categoryId: ID
+  tags: [String!]
+  fromDate: String
+  toDate: String
+  limit: Int
+  offset: Int
+}
+
+type SearchNewsResult {
+  news: [News!]!
+  total: Int!
+  hasMore: Boolean!
 }
 
 type Query {
-  news(id: ID!): News
+  news(id: ID!): News!
   newsList(
-    category: ID
     status: NewsStatus
+    categoryId: ID
     limit: Int
     offset: Int
   ): [News!]!
-  categories: [Category!]!
+  searchNews(input: SearchNewsInput!): SearchNewsResult!
 }
 
 type Mutation {
   createNews(input: CreateNewsInput!): News!
-  updateNews(id: ID!, input: UpdateNewsInput!): News!
+  updateNews(input: UpdateNewsInput!): News!
   deleteNews(id: ID!): Boolean!
 } 

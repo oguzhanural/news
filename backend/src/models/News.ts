@@ -1,46 +1,28 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import slugify from 'slugify';
 
-interface IImage {
-  url: string;
-  caption?: string;
-  isMain: boolean;
-}
-
 export interface INews extends Document {
   title: string;
-  slug: string;
   content: string;
   summary: string;
-  images: IImage[];
-  category: mongoose.Types.ObjectId;
+  slug: string;
   author: mongoose.Types.ObjectId;
-  publishDate: Date | null;
+  category: mongoose.Types.ObjectId;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   tags: string[];
+  images: {
+    url: string;
+    isMain: boolean;
+  }[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-const ImageSchema = new Schema({
-  url: {
-    type: String,
-    required: true
-  },
-  caption: String,
-  isMain: {
-    type: Boolean,
-    required: true
-  }
-}, { _id: false });
-
-const NewsSchema = new Schema<INews>({
+const newsSchema = new Schema({
   title: {
     type: String,
     required: true,
     trim: true
-  },
-  slug: {
-    type: String,
-    unique: true
   },
   content: {
     type: String,
@@ -49,35 +31,21 @@ const NewsSchema = new Schema<INews>({
   summary: {
     type: String,
     required: true,
-    maxlength: 500
+    trim: true
   },
-  images: {
-    type: [ImageSchema],
-    required: true,
-    validate: {
-      validator: function(images: IImage[]) {
-        // Must have at least one image
-        if (images.length === 0) return false;
-        // Must have exactly one main image
-        const mainImages = images.filter(img => img.isMain);
-        return mainImages.length === 1;
-      },
-      message: 'News must have at least one image and exactly one main image'
-    }
-  },
-  category: {
-    type: Schema.Types.ObjectId,
-    ref: 'Category',
-    required: true
+  slug: {
+    type: String,
+    unique: true
   },
   author: {
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  publishDate: {
-    type: Date,
-    default: null
+  category: {
+    type: Schema.Types.ObjectId,
+    ref: 'Category',
+    required: true
   },
   status: {
     type: String,
@@ -87,37 +55,46 @@ const NewsSchema = new Schema<INews>({
   tags: [{
     type: String,
     trim: true
-  }]
+  }],
+  images: [{
+    url: {
+      type: String,
+      required: true
+    },
+    isMain: {
+      type: Boolean,
+      default: false
+    }
+  }],
 }, {
   timestamps: true
 });
 
-// Create unique slug from title before saving
-NewsSchema.pre('save', async function(next) {
+// Create text indexes for search
+newsSchema.index({ 
+  title: 'text', 
+  content: 'text', 
+  summary: 'text',
+  tags: 'text' 
+});
+
+// Middleware to generate slug from title
+newsSchema.pre('save', function(next) {
   if (this.isModified('title')) {
-    let baseSlug = slugify(this.title, { lower: true });
-    let slug = baseSlug;
-    let counter = 1;
-    
-    // Keep trying until we find a unique slug
-    while (true) {
-      // Check if a document with this slug already exists (excluding current document)
-      const exists = await mongoose.models.News.exists({ 
-        _id: { $ne: this._id }, 
-        slug: slug 
-      });
-      
-      if (!exists) {
-        this.slug = slug;
-        break;
-      }
-      
-      // If exists, try with counter
-      slug = `${baseSlug}-${counter}`;
-      counter++;
+    this.slug = slugify(this.title, { lower: true });
+  }
+  next();
+});
+
+// Validate that exactly one image is marked as main
+newsSchema.pre('save', function(next) {
+  if (this.images && this.images.length > 0) {
+    const mainImages = this.images.filter(img => img.isMain);
+    if (mainImages.length !== 1) {
+      next(new Error('Exactly one image must be marked as main'));
     }
   }
   next();
 });
 
-export const News = mongoose.model<INews>('News', NewsSchema); 
+export const News = mongoose.model<INews>('News', newsSchema); 
