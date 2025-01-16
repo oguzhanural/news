@@ -9,10 +9,11 @@ import { ApolloServer } from '@apollo/server';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
-const typeDefs = readFileSync(
-  resolve(__dirname, '../../schemas/news.graphql'),
-  'utf-8'
-);
+const typeDefs = [
+  readFileSync(resolve(__dirname, '../../schemas/news.graphql'), 'utf-8'),
+  readFileSync(resolve(__dirname, '../../schemas/user.graphql'), 'utf-8'),
+  readFileSync(resolve(__dirname, '../../schemas/category.graphql'), 'utf-8')
+];
 
 interface TestResponse {
   body: {
@@ -31,8 +32,6 @@ interface TestResponse {
     };
   };
 }
-
-let testServer: ApolloServer;
 
 interface CreateNewsInput {
   title: string;
@@ -53,9 +52,29 @@ describe('News Resolver Tests', () => {
   let categoryId: mongoose.Types.ObjectId;
   let newsId: mongoose.Types.ObjectId;
   let context: { userId: string };
+  let testServer: ApolloServer;
 
   beforeAll(async () => {
     await connectDB();
+    testServer = new ApolloServer({
+      typeDefs,
+      resolvers: {
+        Query: {
+          ...newsResolver.Query
+        },
+        Mutation: {
+          ...newsResolver.Mutation
+        },
+        News: {
+          author: async (parent: any) => {
+            return await User.findById(parent.author).select('-password');
+          },
+          category: async (parent: any) => {
+            return await Category.findById(parent.category);
+          }
+        }
+      }
+    });
   });
 
   beforeEach(async () => {
