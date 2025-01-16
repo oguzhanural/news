@@ -56,16 +56,31 @@ const newsSchema = new Schema({
     type: String,
     trim: true
   }],
-  images: [{
-    url: {
-      type: String,
-      required: true
-    },
-    isMain: {
-      type: Boolean,
-      default: false
+  images: {
+    type: [{
+      url: {
+        type: String,
+        required: true
+      },
+      isMain: {
+        type: Boolean,
+        default: false
+      }
+    }],
+    required: true,
+    validate: {
+      validator: function(images: any[]) {
+        // Must have at least one image
+        if (!images || images.length === 0) {
+          return false;
+        }
+        // Must have exactly one main image
+        const mainImages = images.filter(img => img.isMain);
+        return mainImages.length === 1;
+      },
+      message: 'News must have at least one image and exactly one main image'
     }
-  }],
+  },
 }, {
   timestamps: true
 });
@@ -78,10 +93,29 @@ newsSchema.index({
   tags: 'text' 
 });
 
-// Middleware to generate slug from title
-newsSchema.pre('save', function(next) {
+// Middleware to generate unique slug from title
+newsSchema.pre('save', async function(next) {
   if (this.isModified('title')) {
-    this.slug = slugify(this.title, { lower: true });
+    let baseSlug = slugify(this.title, { lower: true });
+    let slug = baseSlug;
+    let counter = 1;
+    
+    // Keep trying until we find a unique slug
+    while (true) {
+      const existingNews = await mongoose.models.News.findOne({ 
+        _id: { $ne: this._id }, // Exclude current document
+        slug: slug 
+      });
+      
+      if (!existingNews) {
+        this.slug = slug;
+        break;
+      }
+      
+      // If exists, try with counter
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
   }
   next();
 });
