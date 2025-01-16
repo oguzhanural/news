@@ -1,13 +1,28 @@
 # Backend Test Documentation
 
-This document provides an overview of all test cases implemented in the backend of our news application.
+This document provides a comprehensive overview of all test cases implemented in the backend of our news application.
 
-## Test Structure
+## Test Architecture
 
-The tests are organized into several test suites, each focusing on specific components:
+### Directory Structure
+```
+__tests__/
+├── models/              # Model validation tests
+│   ├── User.test.ts
+│   ├── News.test.ts
+│   └── Category.test.ts
+├── resolvers/          # GraphQL resolver tests
+│   ├── userResolver.test.ts
+│   ├── newsResolver.test.ts
+│   └── categoryResolver.test.ts
+└── setup.ts           # Test environment configuration
+```
 
-1. Model Tests
-2. Resolver Tests
+### Test Environment
+- Uses in-memory MongoDB for isolation
+- Clears database between tests
+- Provides utility functions for database operations
+- Handles authentication tokens for testing
 
 ## Model Tests
 
@@ -26,6 +41,30 @@ Tests for user data model validation and operations:
   - Should hash password before saving
   - Should not rehash password if not modified
 
+### News Model (`News.test.ts`)
+Tests for news article data model validation:
+
+- ✓ Basic Operations
+  - Should create a valid news article
+  - Should generate unique slug from title
+  - Should validate required fields
+  - Should validate status enum values
+
+- ✓ Image Handling
+  - Should require at least one image
+  - Should require exactly one main image
+  - Should validate image URL format
+  - Should handle multiple images correctly
+
+- ✓ Slug Generation
+  - Should generate SEO-friendly slugs
+  - Should handle duplicate titles with unique slugs
+  - Should maintain slug uniqueness across updates
+
+- ✓ Search Indexing
+  - Should create text indexes for searchable fields
+  - Should index title, content, summary, and tags
+
 ### Category Model (`Category.test.ts`)
 Tests for category data model validation:
 
@@ -35,89 +74,121 @@ Tests for category data model validation:
   - Should generate slug from name
   - Should prevent duplicate category names
 
-### News Model (`News.test.ts`)
-Tests for news article data model validation:
-
-- ✓ Creation & Validation
-  - Should create a valid news article
-  - Should require at least one image
-  - Should require exactly one main image
-  - Should generate a unique slug from title
-  - Should validate required fields
-  - Should validate status enum values
-
 ## Resolver Tests
 
 ### User Resolver (`userResolver.test.ts`)
 Tests for user-related GraphQL operations:
 
-- ✓ Queries
-  - Should fetch all users when authenticated as admin
-  - Should fail to fetch users without admin role
+- ✓ Authentication
+  - Should register new users
+  - Should login users with correct credentials
+  - Should handle invalid credentials
+  - Should manage JWT tokens
 
-- ✓ Mutations
-  - Registration
-    - Should register a new user
-    - Should fail to register user with existing email
-  
-  - Authentication
-    - Should login user with correct credentials
-    - Should fail to login with incorrect password
-  
-  - User Management
-    - Should update user when authenticated
-    - Should fail to update other user without admin role
-    - Should delete user when authenticated as admin
-    - Should allow user to delete their own profile
-    - Should prevent non-admin user from deleting other users
+- ✓ Authorization
+  - Should enforce role-based access
+  - Should prevent unauthorized access
+  - Should allow admin operations
+  - Should restrict user operations
 
-- ✓ Role-based Update Permissions
-  - Should allow admin to update any user's all fields
-  - Should allow non-admin user to update their own basic information
-  - Should prevent non-admin user from updating their role
-  - Should prevent non-admin user from updating other users
+- ✓ User Management
+  - Should update user profiles
+  - Should handle password changes
+  - Should manage user roles
+  - Should delete user accounts
+
+### News Resolver (`newsResolver.test.ts`)
+Tests for news-related GraphQL operations:
+
+- ✓ Query Operations
+  - Should fetch single news article
+  - Should list news articles
+  - Should handle pagination
+  - Should filter by category and status
+
+- ✓ Mutation Operations
+  - Should create news articles
+  - Should update existing articles
+  - Should handle image updates
+  - Should manage article status
+
+- ✓ Search Functionality
+  - Should perform full-text search
+  - Should filter search results by status
+  - Should filter by tags
+  - Should handle search pagination
+  - Should sort by relevance
+  - Should return total count and hasMore flag
+
+- ✓ Authorization Rules
+  - Should enforce author permissions
+  - Should allow admin overrides
+  - Should prevent unauthorized updates
+  - Should restrict deletion rights
 
 ### Category Resolver (`categoryResolver.test.ts`)
 Tests for category-related GraphQL operations:
 
 - ✓ Queries
   - Should fetch all categories
+  - Should handle category filtering
 
 - ✓ Mutations
-  - Should create a new category when authenticated
-  - Should fail to create category with duplicate name
-  - Should fail to create category without authentication
-  - Should update an existing category
-  - Should delete a category
-
-### News Resolver (`newsResolver.test.ts`)
-Tests for news-related GraphQL operations:
-
-- ✓ Queries
-  - Should return a news article by id
-  - Should throw error for non-existent news
-  - Should return list of news articles
-  - Should filter by category
-  - Should filter by status
-
-- ✓ Mutations
-  - Should create a news article
-  - Should throw error when not authenticated
-  - Should update a news article
-  - Should throw error when updating non-existent news
-  - Should throw error when user is not author
+  - Should create categories when authenticated
+  - Should prevent duplicate categories
+  - Should update existing categories
+  - Should delete categories with proper authorization
 
 ## Running Tests
 
-To run all tests:
+### Commands
 ```bash
+# Run all tests
 npm test
+
+# Run specific test file
+npm test -- user.test.ts
+
+# Run with coverage
+npm test -- --coverage
+
+# Run in watch mode
+npm test -- --watch
 ```
 
-## Test Environment
+### Coverage Requirements
+- Models: Minimum 90% coverage
+- Resolvers: Minimum 80% coverage
+- Overall: Minimum 85% coverage
 
-- Tests use an in-memory MongoDB database
-- Each test suite runs in isolation
-- Database is cleared between each test
-- Authentication tokens are generated for testing purposes
-- GraphQL operations are tested using Apollo Server test utilities 
+## Best Practices
+
+### Test Organization
+- Use descriptive test names
+- Group related tests using describe blocks
+- Follow AAA pattern (Arrange, Act, Assert)
+- Clean up test data after each test
+
+### Mocking and Stubs
+- Use in-memory database for tests
+- Mock external services when necessary
+- Provide test utilities for common operations
+- Maintain test isolation
+
+### Error Handling
+- Test both success and error cases
+- Verify error messages and codes
+- Test edge cases and boundary conditions
+- Ensure proper error propagation
+
+### Authentication & Authorization
+- Test with different user roles
+- Verify token validation
+- Test permission boundaries
+- Check access control rules
+
+## Continuous Integration
+- Tests run on every pull request
+- Coverage reports generated automatically
+- Failed tests block merging
+- Performance metrics tracked 
