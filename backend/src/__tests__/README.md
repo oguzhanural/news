@@ -192,3 +192,241 @@ npm test -- --watch
 - Coverage reports generated automatically
 - Failed tests block merging
 - Performance metrics tracked 
+
+## GraphQL Query Examples
+
+### News API Queries
+
+#### Fetch Single News Article
+```graphql
+query GetNewsById {
+  news(id: "news-id") {
+    id
+    title
+    content
+    summary
+    slug
+    status
+    author {
+      id
+      name
+      email
+    }
+    category {
+      id
+      name
+    }
+    tags
+    images {
+      url
+      isMain
+    }
+    createdAt
+    updatedAt
+  }
+}
+```
+
+#### List News Articles with Filtering
+```graphql
+query GetNewsList(
+  $status: NewsStatus
+  $categoryId: ID
+  $limit: Int
+  $offset: Int
+) {
+  newsList(
+    status: $status
+    categoryId: $categoryId
+    limit: $limit
+    offset: $offset
+  ) {
+    id
+    title
+    summary
+    status
+    category {
+      name
+    }
+    author {
+      name
+    }
+    createdAt
+  }
+}
+```
+
+#### Search News Articles
+```graphql
+query SearchNews(
+  $query: String!
+  $status: NewsStatus
+  $categoryId: ID
+  $tags: [String!]
+  $fromDate: String
+  $toDate: String
+  $limit: Int
+  $offset: Int
+) {
+  searchNews(input: {
+    query: $query
+    status: $status
+    categoryId: $categoryId
+    tags: $tags
+    fromDate: $fromDate
+    toDate: $toDate
+    limit: $limit
+    offset: $offset
+  }) {
+    news {
+      id
+      title
+      summary
+      status
+      tags
+      category {
+        name
+      }
+      createdAt
+    }
+    total
+    hasMore
+  }
+}
+```
+
+### News API Mutations
+
+#### Create News Article
+```graphql
+mutation CreateNews($input: CreateNewsInput!) {
+  createNews(input: $input) {
+    id
+    title
+    content
+    summary
+    slug
+    status
+    tags
+    images {
+      url
+      isMain
+    }
+    category {
+      id
+      name
+    }
+    author {
+      id
+      name
+    }
+    createdAt
+  }
+}
+
+# Variables example:
+{
+  "input": {
+    "title": "New Article Title",
+    "content": "Article content here...",
+    "summary": "Brief summary",
+    "categoryId": "category-id",
+    "tags": ["technology", "ai"],
+    "images": [
+      {
+        "url": "https://example.com/image.jpg",
+        "isMain": true
+      }
+    ]
+  }
+}
+```
+
+#### Update News Article
+```graphql
+mutation UpdateNews($input: UpdateNewsInput!) {
+  updateNews(input: $input) {
+    id
+    title
+    content
+    summary
+    status
+    tags
+    images {
+      url
+      isMain
+    }
+    updatedAt
+  }
+}
+
+# Variables example:
+{
+  "input": {
+    "id": "news-id",
+    "title": "Updated Title",
+    "content": "Updated content",
+    "status": "PUBLISHED",
+    "tags": ["updated", "tags"]
+  }
+}
+```
+
+#### Delete News Article
+```graphql
+mutation DeleteNews($id: ID!) {
+  deleteNews(id: $id)
+}
+
+# Variables:
+{
+  "id": "news-id"
+}
+```
+
+### Testing Tips
+
+#### Authentication Headers
+```javascript
+// Include in HTTP headers
+{
+  "Authorization": "Bearer your-jwt-token"
+}
+```
+
+#### Example Test Cases
+1. Create and then update article:
+```javascript
+// First create article
+const createResponse = await request(graphqlEndpoint, createNewsMutation, {
+  input: {
+    title: "Test Article",
+    content: "Content",
+    summary: "Summary",
+    categoryId: "cat-id",
+    images: [{ url: "image.jpg", isMain: true }]
+  }
+}, headers);
+
+const newsId = createResponse.createNews.id;
+
+// Then update it
+const updateResponse = await request(graphqlEndpoint, updateNewsMutation, {
+  input: {
+    id: newsId,
+    title: "Updated Title",
+    status: "PUBLISHED"
+  }
+}, headers);
+```
+
+2. Search with filters:
+```javascript
+const searchResponse = await request(graphqlEndpoint, searchNewsQuery, {
+  query: "technology",
+  status: "PUBLISHED",
+  tags: ["ai"],
+  limit: 10,
+  offset: 0
+}, headers);
+``` 
