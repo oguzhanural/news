@@ -24,6 +24,32 @@ enum NewsStatus {
   ARCHIVED
 }
 
+enum NewsSortField {
+  CREATED_AT
+  UPDATED_AT
+  TITLE
+  STATUS
+}
+
+enum SortOrder {
+  ASC
+  DESC
+}
+
+input NewsFilterInput {
+  status: NewsStatus
+  categoryId: ID
+  authorId: ID
+  tags: [String!]
+  fromDate: String
+  toDate: String
+}
+
+input NewsSortInput {
+  field: NewsSortField!
+  order: SortOrder!
+}
+
 input CreateNewsInput {
   title: String!
   content: String!
@@ -66,14 +92,20 @@ type SearchNewsResult {
   hasMore: Boolean!
 }
 
+type NewsListResponse {
+  news: [News!]!
+  total: Int!
+  hasMore: Boolean!
+}
+
 type Query {
   news(id: ID!): News!
   newsList(
-    status: NewsStatus
-    categoryId: ID
+    filter: NewsFilterInput
+    sort: NewsSortInput
     limit: Int
     offset: Int
-  ): [News!]!
+  ): NewsListResponse!
   searchNews(input: SearchNewsInput!): SearchNewsResult!
 }
 
