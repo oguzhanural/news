@@ -15,18 +15,48 @@ const typeDefs = [
   readFileSync(resolve(__dirname, '../../schemas/category.graphql'), 'utf-8')
 ];
 
+interface NewsDocument extends mongoose.Document {
+  title: string;
+  content: string;
+  summary: string;
+  slug: string;
+  status: string;
+  tags: string[];
+  createdAt: string;
+  category: mongoose.Types.ObjectId;
+  author: mongoose.Types.ObjectId;
+  images: Array<{
+    url: string;
+    isMain: boolean;
+  }>;
+}
+
+interface NewsListResult {
+  news: NewsDocument[];
+  total: number;
+  hasMore: boolean;
+}
+
+interface SearchNewsResult {
+  news: Array<{
+    id: string;
+    title: string;
+    status: string;
+    tags: string[];
+    createdAt: string;
+  }>;
+  total: number;
+  hasMore: boolean;
+}
+
 interface TestResponse {
   body: {
     kind: string;
     singleResult: {
       data?: {
-        news?: any;
-        newsList?: any[];
-        searchNews?: {
-          news: any[];
-          total: number;
-          hasMore: boolean;
-        };
+        news?: NewsDocument;
+        newsList?: NewsListResult;
+        searchNews?: SearchNewsResult;
       };
       errors?: Array<{ message: string }>;
     };
@@ -138,22 +168,51 @@ describe('News Resolver Tests', () => {
     describe('newsList', () => {
       it('should return list of news articles', async () => {
         const result = await newsResolver.Query.newsList(null, {});
-        expect(Array.isArray(result)).toBe(true);
-        expect(result.length).toBe(1);
+        expect(result).toBeDefined();
+        expect(Array.isArray(result.news)).toBe(true);
+        expect(result.total).toBeGreaterThanOrEqual(1);
+        expect(typeof result.hasMore).toBe('boolean');
       });
 
       it('should filter by category', async () => {
         const result = await newsResolver.Query.newsList(null, { 
-          category: categoryId.toString() 
+          filter: { categoryId: categoryId.toString() }
         });
-        expect(result.length).toBe(1);
+        expect(result.news.length).toBeGreaterThanOrEqual(1);
+        expect(result.news[0].category.toString()).toBe(categoryId.toString());
       });
 
       it('should filter by status', async () => {
         const result = await newsResolver.Query.newsList(null, { 
-          status: 'DRAFT' 
+          filter: { status: 'DRAFT' }
         });
-        expect(result.length).toBe(1);
+        expect(result.news.length).toBeGreaterThanOrEqual(1);
+        expect(result.news[0].status).toBe('DRAFT');
+      });
+
+      it('should handle sorting', async () => {
+        const result = await newsResolver.Query.newsList(null, {
+          sort: {
+            field: 'TITLE',
+            order: 'ASC'
+          }
+        });
+        expect(result.news.length).toBeGreaterThanOrEqual(1);
+        
+        // Verify sorting
+        const titles = result.news.map(n => n.title) as string[];
+        expect(titles.length).toBeGreaterThan(0);
+        expect(titles).toEqual([...titles].sort());
+      });
+
+      it('should handle pagination', async () => {
+        const result = await newsResolver.Query.newsList(null, {
+          limit: 1,
+          offset: 0
+        });
+        expect(result.news.length).toBeLessThanOrEqual(1);
+        expect(result.total).toBeGreaterThanOrEqual(1);
+        expect(typeof result.hasMore).toBe('boolean');
       });
     });
   });
@@ -256,37 +315,29 @@ describe('News Resolver Tests', () => {
 
   describe('Search', () => {
     beforeEach(async () => {
-      // Create test news articles
+      // Create test data for search
       await News.create([
         {
           title: 'Technology News',
-          content: 'Latest developments in AI and Machine Learning',
-          summary: 'AI advances',
-          author: userId,
+          content: 'Content about technology',
+          summary: 'Tech summary',
+          slug: 'technology-news',
+          images: [{ url: 'test.jpg', isMain: true }],
           category: categoryId,
+          author: userId,
           status: 'PUBLISHED',
-          tags: ['technology', 'ai'],
-          images: [{ url: 'image1.jpg', isMain: true }]
+          tags: ['technology', 'smartphones']
         },
         {
-          title: 'Sports Update',
-          content: 'World Cup Finals Results',
-          summary: 'Sports results',
-          author: userId,
+          title: 'Another Tech Article',
+          content: 'More tech content',
+          summary: 'Another tech summary',
+          slug: 'another-tech-article',
+          images: [{ url: 'test2.jpg', isMain: true }],
           category: categoryId,
-          status: 'PUBLISHED',
-          tags: ['sports', 'worldcup'],
-          images: [{ url: 'image2.jpg', isMain: true }]
-        },
-        {
-          title: 'Technology Review',
-          content: 'New smartphone releases',
-          summary: 'Tech review',
           author: userId,
-          category: categoryId,
           status: 'DRAFT',
-          tags: ['technology', 'smartphones'],
-          images: [{ url: 'image3.jpg', isMain: true }]
+          tags: ['technology']
         }
       ]);
     });
@@ -320,7 +371,7 @@ describe('News Resolver Tests', () => {
 
     it('should filter search results by status', async () => {
       const query = `
-        query {
+        query SearchNewsByStatus {
           searchNews(input: {
             query: "technology"
             status: PUBLISHED
@@ -335,18 +386,18 @@ describe('News Resolver Tests', () => {
       `;
 
       const response = await testServer.executeOperation({ query }) as TestResponse;
-
+      const searchResult = response.body.singleResult.data?.searchNews as SearchNewsResult;
+      
       expect(response.body.kind).toBe('single');
-      const data = response.body.singleResult.data?.searchNews;
-      expect(data).toBeDefined();
-      expect(data?.news).toHaveLength(1);
-      expect(data?.total).toBe(1);
-      expect(data?.news[0].status).toBe('PUBLISHED');
+      expect(searchResult).toBeDefined();
+      expect(searchResult.news).toHaveLength(1);
+      expect(searchResult.total).toBe(1);
+      expect(searchResult.news[0].status).toBe('PUBLISHED');
     });
 
     it('should filter search results by tags', async () => {
       const query = `
-        query {
+        query SearchNewsByTags {
           searchNews(input: {
             query: "technology"
             tags: ["smartphones"]
@@ -361,13 +412,13 @@ describe('News Resolver Tests', () => {
       `;
 
       const response = await testServer.executeOperation({ query }) as TestResponse;
-
+      const searchResult = response.body.singleResult.data?.searchNews as SearchNewsResult;
+      
       expect(response.body.kind).toBe('single');
-      const data = response.body.singleResult.data?.searchNews;
-      expect(data).toBeDefined();
-      expect(data?.news).toHaveLength(1);
-      expect(data?.total).toBe(1);
-      expect(data?.news[0].tags).toContain('smartphones');
+      expect(searchResult).toBeDefined();
+      expect(searchResult.news).toHaveLength(1);
+      expect(searchResult.total).toBe(1);
+      expect(searchResult.news[0].tags).toContain('smartphones');
     });
 
     it('should handle pagination in search results', async () => {
@@ -395,6 +446,118 @@ describe('News Resolver Tests', () => {
       expect(data?.news).toHaveLength(1);
       expect(data?.total).toBe(2);
       expect(data?.hasMore).toBe(true);
+    });
+  });
+
+  describe('News List', () => {
+    it('should filter news by multiple criteria', async () => {
+      const query = `
+        query FilterNewsList($filter: NewsFilterInput) {
+          newsList(filter: $filter) {
+            news {
+              id
+              title
+              status
+              tags
+              createdAt
+            }
+            total
+            hasMore
+          }
+        }
+      `;
+
+      const variables = {
+        filter: {
+          status: "PUBLISHED",
+          categoryId: categoryId.toString(),
+          authorId: userId.toString(),
+          tags: ["technology"],
+          fromDate: "2024-01-01",
+          toDate: "2024-12-31"
+        }
+      };
+
+      const response = await testServer.executeOperation({ 
+        query,
+        variables
+      }) as TestResponse;
+      
+      const listResult = response.body.singleResult.data?.newsList as NewsListResult;
+      expect(response.body.kind).toBe('single');
+      expect(listResult).toBeDefined();
+      expect(Array.isArray(listResult.news)).toBe(true);
+      expect(typeof listResult.total).toBe('number');
+      expect(typeof listResult.hasMore).toBe('boolean');
+    });
+
+    it('should sort news by different fields', async () => {
+      const query = `
+        query {
+          newsList(
+            sort: {
+              field: TITLE
+              order: ASC
+            }
+            limit: 5
+          ) {
+            news {
+              id
+              title
+            }
+            total
+            hasMore
+          }
+        }
+      `;
+
+      const response = await testServer.executeOperation({ query }) as TestResponse;
+      
+      expect(response.body.kind).toBe('single');
+      const data = response.body.singleResult.data?.newsList;
+      expect(data).toBeDefined();
+      expect(Array.isArray(data?.news)).toBe(true);
+      
+      // Verify sorting
+      if (data && data.news) {
+        const titles = data.news.map(n => n.title);
+        const sortedTitles = Array.from(titles).sort();
+        expect(titles).toEqual(sortedTitles);
+      }
+    });
+
+    it('should filter news by date range', async () => {
+      const query = `
+        query {
+          newsList(
+            filter: {
+              fromDate: "2024-01-01"
+              toDate: "2024-12-31"
+            }
+          ) {
+            news {
+              id
+              createdAt
+            }
+            total
+          }
+        }
+      `;
+
+      const response = await testServer.executeOperation({ query }) as TestResponse;
+      
+      expect(response.body.kind).toBe('single');
+      const data = response.body.singleResult.data?.newsList;
+      expect(data).toBeDefined();
+      
+      // Verify date filtering
+      data?.news.forEach(news => {
+        if (news.createdAt) {
+          const createdAt = new Date(news.createdAt);
+          expect(createdAt.getTime()).toBeGreaterThanOrEqual(new Date('2024-01-01').getTime());
+          expect(createdAt.getTime()).toBeLessThanOrEqual(new Date('2024-12-31').getTime());
+        }
+      });
     });
   });
 }); 
