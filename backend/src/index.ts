@@ -1,126 +1,57 @@
 import { ApolloServer } from '@apollo/server';
-import { expressMiddleware } from '@apollo/server/express4';
-import express from 'express';
-import cors from 'cors';
-import { json } from 'body-parser';
+import { startStandaloneServer } from '@apollo/server/standalone';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import dotenv from 'dotenv';
 import { connectDB } from './utils/db';
-import { resolvers } from './resolvers';
-import jwt from 'jsonwebtoken';
-import { User } from './models/User';
+import { newsResolver } from './resolvers/newsResolver';
+import { userResolver } from './resolvers/userResolver';
+import { categoryResolver } from './resolvers/categoryResolver';
+import { verifyToken } from './utils/jwt';
 
-// Load environment variables
-dotenv.config();
+// Read the combined schema
+const typeDefs = readFileSync(resolve(__dirname, './schemas/schema.graphql'), 'utf-8');
 
-// Read schemas
-const newsTypeDefs = readFileSync(resolve(__dirname, './schemas/news.graphql'), {
-  encoding: 'utf-8',
-});
-
-const userTypeDefs = readFileSync(resolve(__dirname, './schemas/user.graphql'), {
-  encoding: 'utf-8',
-});
-
-const categoryTypeDefs = readFileSync(resolve(__dirname, './schemas/category.graphql'), {
-  encoding: 'utf-8',
-});
-
-// Combine type definitions
-const typeDefs = `
-  ${newsTypeDefs}
-  ${userTypeDefs}
-  ${categoryTypeDefs}
-
-  # Merge root types
-  type Query {
-    # News queries
-    news(id: ID!): News
-    newsList(category: ID, status: NewsStatus, limit: Int, offset: Int): [News!]!
-    
-    # User queries
-    user(id: ID!): User
-    users: [User!]!
-    
-    # Category queries
-    categories: [Category!]!
-  }
-
-  type Mutation {
-    # News mutations
-    createNews(input: CreateNewsInput!): News!
-    updateNews(input: UpdateNewsInput!): News!
-    deleteNews(id: ID!): Boolean!
-    
-    # User mutations
-    registerUser(input: RegisterUserInput!): AuthPayload!
-    loginUser(input: LoginUserInput!): AuthPayload!
-    updateUser(id: ID!, input: RegisterUserInput!): User!
-    deleteUser(id: ID!): Boolean!
-    
-    # Category mutations
-    createCategory(input: CreateCategoryInput!): Category!
-    updateCategory(id: ID!, input: UpdateCategoryInput!): Category!
-    deleteCategory(id: ID!): Boolean!
-  }
-`;
-
-// Initialize express
-const app = express();
-
-// Create Apollo Server
-const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-});
-
-// Context function to handle authentication
-const getUser = async (token: string) => {
-  if (!token) return null;
-  
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as { userId: string };
-    const user = await User.findById(decoded.userId).select('-password');
-    return user;
-  } catch (error) {
-    return null;
-  }
+// Combine resolvers
+const resolvers = {
+  Query: {
+    ...userResolver.Query,
+    ...categoryResolver.Query,
+    ...newsResolver.Query,
+  },
+  Mutation: {
+    ...userResolver.Mutation,
+    ...categoryResolver.Mutation,
+    ...newsResolver.Mutation,
+  },
+  News: newsResolver.News,
 };
 
-const startServer = async () => {
+async function startServer() {
   // Connect to MongoDB
   await connectDB();
 
-  // Start Apollo Server
-  await server.start();
-
-  // Apply middleware
-  app.use(
-    '/graphql',
-    cors<cors.CorsRequest>(),
-    json(),
-    expressMiddleware(server, {
-      context: async ({ req }) => {
-        // Get token from header
-        const token = req.headers.authorization?.split(' ')[1] || '';
-        const user = await getUser(token);
-        
-        return { 
-          user,
-          userId: user?._id 
-        };
-      }
-    }),
-  );
-
-  // Start express server
-  const PORT = process.env.PORT || 4000;
-  app.listen(PORT, () => {
-    console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
+  // Create Apollo Server
+  const server = new ApolloServer({
+    typeDefs,
+    resolvers,
   });
-};
 
-startServer().catch((error) => {
-  console.error('Failed to start server:', error);
-}); 
+  // Start the server
+  const { url } = await startStandaloneServer(server, {
+    context: async ({ req }) => {
+      // Get the user token from the headers
+      const token = req.headers.authorization || '';
+      
+      // Try to retrieve a user with the token
+      const userId = token ? await verifyToken(token.replace('Bearer ', '')) : null;
+      
+      // Add the user to the context
+      return { userId };
+    },
+    listen: { port: 4000 }
+  });
+
+  console.log(`🚀 Server ready at ${url}`);
+}
+
+startServer().catch(console.error); 
