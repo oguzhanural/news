@@ -3,7 +3,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const MONGODB_URI = `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASS}@cluster0.vlapc.mongodb.net/${process.env.MONGO_DB_NAME}?retryWrites=true&w=majority&appName=Cluster0`;
+const MONGODB_URI = process.env.MONGODB_URI || 
+  `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASS}@cluster0.vlapc.mongodb.net/${process.env.MONGO_DB_NAME}?retryWrites=true&w=majority&appName=Cluster0`;
 
 const connectWithRetry = async () => {
   const MAX_RETRIES = 5;
@@ -12,7 +13,7 @@ const connectWithRetry = async () => {
 
   while (retries < MAX_RETRIES) {
     try {
-      await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/news', {
+      await mongoose.connect(MONGODB_URI, {
         maxPoolSize: 10,
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
