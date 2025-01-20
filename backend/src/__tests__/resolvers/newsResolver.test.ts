@@ -179,7 +179,7 @@ describe('News Resolver Tests', () => {
           filter: { categoryId: categoryId.toString() }
         });
         expect(result.news.length).toBeGreaterThanOrEqual(1);
-        expect(result.news[0].category.toString()).toBe(categoryId.toString());
+        expect(result.news[0].category._id.toString()).toBe(categoryId.toString());
       });
 
       it('should filter by status', async () => {
