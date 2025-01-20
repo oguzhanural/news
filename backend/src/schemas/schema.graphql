@@ -1,0 +1,195 @@
+# Base types
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  role: UserRole!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Category {
+  id: ID!
+  name: String!
+  slug: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type News {
+  id: ID!
+  title: String!
+  content: String!
+  summary: String!
+  slug: String!
+  images: [NewsImage!]!
+  author: User!
+  category: Category!
+  status: NewsStatus!
+  tags: [String!]
+  createdAt: String!
+  updatedAt: String!
+}
+
+# Enums
+enum UserRole {
+  EDITOR
+  JOURNALIST
+  ADMIN
+}
+
+enum NewsStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum NewsSortField {
+  CREATED_AT
+  UPDATED_AT
+  TITLE
+  STATUS
+}
+
+enum SortOrder {
+  ASC
+  DESC
+}
+
+# Input types
+input RegisterUserInput {
+  name: String!
+  email: String!
+  password: String!
+  role: UserRole
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+input UpdateUserInput {
+  name: String
+  email: String
+  password: String
+  role: UserRole
+}
+
+input CreateCategoryInput {
+  name: String!
+}
+
+input UpdateCategoryInput {
+  name: String!
+}
+
+input NewsImageInput {
+  url: String!
+  caption: String
+  isMain: Boolean!
+}
+
+input CreateNewsInput {
+  title: String!
+  content: String!
+  summary: String!
+  images: [NewsImageInput!]!
+  categoryId: ID!
+  status: NewsStatus!
+  tags: [String!]
+}
+
+input UpdateNewsInput {
+  title: String
+  content: String
+  summary: String
+  images: [NewsImageInput!]
+  categoryId: ID
+  status: NewsStatus
+  tags: [String!]
+}
+
+input NewsFilterInput {
+  status: NewsStatus
+  categoryId: ID
+  authorId: ID
+  tags: [String!]
+  startDate: String
+  endDate: String
+  searchQuery: String
+}
+
+input NewsSortInput {
+  field: NewsSortField!
+  order: SortOrder!
+}
+
+input SearchNewsInput {
+  query: String!
+  status: NewsStatus
+  categoryId: ID
+  tags: [String!]
+  fromDate: String
+  toDate: String
+  limit: Int
+  offset: Int
+}
+
+# Custom types
+type NewsImage {
+  url: String!
+  caption: String
+  isMain: Boolean!
+}
+
+type AuthPayload {
+  token: String!
+  user: User!
+}
+
+type NewsListResponse {
+  news: [News!]!
+  total: Int!
+  hasMore: Boolean!
+}
+
+type SearchNewsResult {
+  news: [News!]!
+  total: Int!
+}
+
+# Root types
+type Query {
+  # User queries
+  user(id: ID!): User!
+  users: [User!]!
+  me: User
+  
+  # Category queries
+  category(id: ID!): Category!
+  categories: [Category!]!
+  
+  # News queries
+  news(id: ID!): News!
+  newsList(page: Int, limit: Int, filter: NewsFilterInput): NewsListResponse!
+  searchNews(query: String!, page: Int, limit: Int): SearchNewsResult!
+}
+
+type Mutation {
+  # User mutations
+  registerUser(input: RegisterUserInput!): AuthPayload!
+  loginUser(input: LoginInput!): AuthPayload!
+  updateUser(id: ID!, input: UpdateUserInput!): User!
+  deleteUser(id: ID!): Boolean!
+  
+  # Category mutations
+  createCategory(input: CreateCategoryInput!): Category!
+  updateCategory(id: ID!, input: UpdateCategoryInput!): Category!
+  deleteCategory(id: ID!): Boolean!
+  
+  # News mutations
+  createNews(input: CreateNewsInput!): News!
+  updateNews(id: ID!, input: UpdateNewsInput!): News!
+  deleteNews(id: ID!): Boolean!
+} 
