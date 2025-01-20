@@ -47,6 +47,20 @@ interface SearchNewsInput {
   offset?: number;
 }
 
+interface NewsFilterInput {
+  status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  categoryId?: string;
+  authorId?: string;
+  tags?: string[];
+  fromDate?: string;
+  toDate?: string;
+}
+
+interface NewsSortInput {
+  field: 'CREATED_AT' | 'UPDATED_AT' | 'TITLE' | 'STATUS';
+  order: 'ASC' | 'DESC';
+}
+
 export const newsResolver = {
   Query: {
     // Get single news by ID
@@ -75,30 +89,75 @@ export const newsResolver = {
 
     // Get list of news with filters
     newsList: async (_: any, args: {
-      category?: string;
-      status?: string;
+      filter?: NewsFilterInput;
+      sort?: NewsSortInput;
       limit?: number;
       offset?: number;
     }) => {
       try {
+        const { filter, sort, limit = 10, offset = 0 } = args;
         let query: any = {};
 
-        if (args.category) {
-          query.category = args.category;
+        // Apply filters
+        if (filter) {
+          if (filter.status) {
+            query.status = filter.status;
+          }
+
+          if (filter.categoryId) {
+            query.category = new mongoose.Types.ObjectId(filter.categoryId);
+          }
+
+          if (filter.authorId) {
+            query.author = new mongoose.Types.ObjectId(filter.authorId);
+          }
+
+          if (filter.tags && filter.tags.length > 0) {
+            query.tags = { $in: filter.tags };
+          }
+
+          if (filter.fromDate || filter.toDate) {
+            query.createdAt = {};
+            if (filter.fromDate) {
+              query.createdAt.$gte = new Date(filter.fromDate);
+            }
+            if (filter.toDate) {
+              query.createdAt.$lte = new Date(filter.toDate);
+            }
+          }
         }
 
-        if (args.status) {
-          query.status = args.status;
+        // Build sort object
+        let sortObj: any = { createdAt: -1 }; // Default sort
+        if (sort) {
+          const sortField = sort.field.toLowerCase().replace(/_(.)/g, (_, c) => c.toUpperCase());
+          sortObj = {
+            [sortField]: sort.order === 'ASC' ? 1 : -1
+          };
         }
 
-        const news = await News.find(query)
-          .populate('category')
-          .populate('author', '-password')
-          .sort({ publishDate: -1, createdAt: -1 })
-          .skip(args.offset || 0)
-          .limit(args.limit || 10);
+        // Execute query with pagination
+        const [news, total] = await Promise.all([
+          News.find(query)
+            .populate('category')
+            .populate('author', '-password')
+            .sort(sortObj)
+            .skip(offset)
+            .limit(limit + 1),
+          News.countDocuments(query)
+        ]);
 
-        return news;
+        // Check if there are more results
+        const hasMore = news.length > limit;
+        if (hasMore) {
+          news.pop(); // Remove the extra item we fetched
+        }
+
+        return {
+          news,
+          total,
+          hasMore
+        };
       } catch (error: unknown) {
         throw new GraphQLError('Error fetching news list', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' }
