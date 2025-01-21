@@ -3,8 +3,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 
-  `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASS}@cluster0.vlapc.mongodb.net/${process.env.MONGO_DB_NAME}?retryWrites=true&w=majority&appName=Cluster0`;
+// Always use MongoDB Atlas
+const MONGODB_URI = `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASS}@cluster0.vlapc.mongodb.net/${process.env.MONGO_DB_NAME}?retryWrites=true&w=majority&appName=Cluster0`;
 
 const connectWithRetry = async () => {
   const MAX_RETRIES = 5;
@@ -21,14 +21,14 @@ const connectWithRetry = async () => {
         family: 4
       });
       
-      console.log('🌿 MongoDB connected successfully');
+      console.log('🌿 MongoDB Atlas connected successfully');
       break;
     } catch (error) {
       retries++;
       console.error(`MongoDB connection attempt ${retries} failed:`, error);
       
       if (retries === MAX_RETRIES) {
-        console.error('Max retries reached. Could not connect to MongoDB');
+        console.error('Max retries reached. Could not connect to MongoDB Atlas');
         throw error;
       }
       
