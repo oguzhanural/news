@@ -77,13 +77,9 @@ export const userResolver = {
           });
         }
 
-        // Hash password before creating user
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(input.password, salt);
-
+        // Create user with plain password - it will be hashed by the pre-save middleware
         const user = new User({
           ...input,
-          password: hashedPassword,
           role: input.role || 'JOURNALIST'
         });
         await user.save();
