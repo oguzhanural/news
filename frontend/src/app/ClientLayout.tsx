@@ -1,9 +1,11 @@
 'use client';
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import SideMenu from "./components/SideMenu";
 import { useTheme } from './context/ThemeContext';
+import { useAuth } from './context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function ClientLayout({
   children,
@@ -11,7 +13,36 @@ export default function ClientLayout({
   children: React.ReactNode;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Add click outside listener
+    function handleClickOutside(event: MouseEvent) {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    }
+
+    // Add event listener when dropdown is open
+    if (isProfileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isProfileMenuOpen]);
+
+  const handleLogout = () => {
+    logout();
+    setIsProfileMenuOpen(false);
+    router.push('/');
+  };
 
   return (
     <>
@@ -23,16 +54,18 @@ export default function ClientLayout({
           {/* Left Section */}
           <div className="flex items-center space-x-4">
             <button 
-              className="p-2"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
               onClick={() => setIsMenuOpen(true)}
+              aria-label="Open menu"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
             <button 
-              className="p-2"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
               onClick={() => setIsMenuOpen(true)}
+              aria-label="Search"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -41,35 +74,83 @@ export default function ClientLayout({
           </div>
 
           {/* Center Logo */}
-          <div className="text-2xl font-bold">NEWS</div>
+          <Link href="/" className="text-2xl font-bold hover:opacity-80">NEWS</Link>
 
           {/* Right Section */}
           <div className="flex items-center space-x-4">
-            <Link href="/register">
-              <button className={`${isDarkMode ? 'bg-black hover:bg-gray-800' : 'bg-gray-100 hover:bg-gray-200'} px-4 py-2 rounded`}>
-                Register
+            {user ? (
+              <div className="relative" ref={profileDropdownRef}>
+                <button
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  className="flex items-center space-x-2 focus:outline-none"
+                >
+                  <div className={`w-10 h-10 rounded-full ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'} flex items-center justify-center`}>
+                    <span className="text-lg">{user.name[0].toUpperCase()}</span>
+                  </div>
+                </button>
+
+                {/* Profile Dropdown */}
+                {isProfileMenuOpen && (
+                  <div className={`absolute right-0 mt-2 w-48 rounded-md shadow-lg ${isDarkMode ? 'bg-gray-900' : 'bg-white'} ring-1 ring-black ring-opacity-5`}>
+                    <div className="py-1" role="menu">
+                      <div className="px-4 py-2 text-sm border-b border-gray-700">
+                        <p className="font-medium">{user.name}</p>
+                        <p className="text-gray-500">{user.role.toLowerCase()}</p>
+                      </div>
+                      <Link
+                        href="/profile"
+                        className="block px-4 py-2 text-sm hover:bg-gray-800"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                      >
+                        Profile Settings
+                      </Link>
+                      <button
+                        onClick={toggleTheme}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-800"
+                      >
+                        {isDarkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
+                      </button>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-gray-800"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <Link href="/register">
+                  <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Register
+                  </button>
+                </Link>
+                <Link href="/signin">
+                  <button className={`px-4 py-2 rounded-md ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}>
+                    Sign In
+                  </button>
+                </Link>
+              </>
+            )}
+            {!user && (
+              <button
+                onClick={toggleTheme}
+                className={`p-2 rounded-full ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
+                aria-label="Toggle theme"
+              >
+                {isDarkMode ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                )}
               </button>
-            </Link>
-            <Link href="/signin">
-              <button className={`${isDarkMode ? 'bg-black hover:bg-gray-800' : 'bg-gray-100 hover:bg-gray-200'} px-4 py-2 rounded`}>
-                Sign In
-              </button>
-            </Link>
-            <button
-              onClick={toggleTheme}
-              className="p-2"
-              aria-label="Toggle theme"
-            >
-              {isDarkMode ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
-            </button>
+            )}
           </div>
         </div>
 
