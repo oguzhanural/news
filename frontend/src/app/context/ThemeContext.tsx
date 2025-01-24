@@ -2,46 +2,37 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 
-type ThemeContextType = {
+interface ThemeContextType {
   isDarkMode: boolean;
   toggleTheme: () => void;
-};
+}
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-function getInitialTheme(): boolean {
-  // Check if we're in the browser
-  if (typeof window !== 'undefined') {
-    // Try to get theme from localStorage
-    const savedTheme = localStorage.getItem('isDarkMode');
-    if (savedTheme !== null) {
-      return JSON.parse(savedTheme);
-    }
-  }
-  // Default to true (dark mode) if no saved preference
-  return true;
-}
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Initialize with the function
-  const [isDarkMode, setIsDarkMode] = useState(getInitialTheme);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    // Update localStorage and document class when theme changes
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('isDarkMode', JSON.stringify(isDarkMode));
-      document.documentElement.classList.toggle('dark', isDarkMode);
+    // Check local storage for theme preference
+    const storedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    setIsDarkMode(storedTheme === 'dark' || (!storedTheme && prefersDark));
+  }, []);
+
+  useEffect(() => {
+    // Update HTML class and local storage when theme changes
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
 
   const toggleTheme = () => {
-    setIsDarkMode(prev => {
-      const newValue = !prev;
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('isDarkMode', JSON.stringify(newValue));
-      }
-      return newValue;
-    });
+    setIsDarkMode(!isDarkMode);
   };
 
   return (
