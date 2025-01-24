@@ -14,7 +14,7 @@ interface NewsItem {
   imageUrl?: string; // Made optional for right column
 }
 
-export default function HomePage() {
+export default function Home() {
   const { isDarkMode } = useTheme();
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -93,105 +93,95 @@ export default function HomePage() {
   ];
 
   return (
-    <div className={`container mx-auto px-4 py-8 ${isDarkMode ? 'text-white' : 'text-black'}`}>
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-8">
-        {/* Left Column - 1 unit width */}
-        <div className="md:col-span-1 space-y-6">
-          {leftNews.map((news) => (
-            <Link href={`/news/${news.id}`} key={news.id}>
-              <div className={`group cursor-pointer`}>
-                <div className="relative h-40 mb-3">
-                  <Image
-                    src={news.imageUrl!}
-                    alt={news.title}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <h2 className="text-lg font-bold mb-2 group-hover:underline line-clamp-2">{news.title}</h2>
-                <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} line-clamp-2`}>
-                  {news.description}
-                </p>
-                <div className="text-xs">
-                  <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {news.time} | {news.category}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        {/* Middle Column - 4 units width */}
-        <div className="md:col-span-4 relative overflow-hidden">
-          <div 
-            className="transition-transform duration-500 ease-in-out"
-            style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-          >
-            <div className="flex">
-              {middleNews.map((news) => (
-                <div key={news.id} className="w-full flex-shrink-0">
-                  <Link href={`/news/${news.id}`}>
-                    <div className={`group cursor-pointer`}>
-                      <div className="relative h-96 mb-4">
-                        <Image
-                          src={news.imageUrl!}
-                          alt={news.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <h2 className="text-3xl font-bold mb-3 group-hover:underline">{news.title}</h2>
-                      <p className={`text-lg mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                        {news.description}
-                      </p>
-                      <div className="text-sm">
-                        <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {news.time} | {news.category}
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                </div>
-              ))}
+    <div className="space-y-8">
+      {/* Featured News */}
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+          <img 
+            src="https://via.placeholder.com/600x400" 
+            alt="Featured news" 
+            className="w-full h-64 object-cover"
+          />
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">
+              Featured Story Title
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
+              A brief description of the featured story goes here. This should be engaging and make readers want to click through.
+            </p>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-500 dark:text-gray-400">2 hours ago</span>
+              <button className="text-blue-600 dark:text-blue-400 hover:underline">Read more</button>
             </div>
           </div>
-
-          {/* Slide Indicators */}
-          <div className="absolute bottom-0 left-0 right-0 flex justify-center space-x-2 pb-4">
-            {middleNews.map((_, index) => (
-              <button
-                key={index}
-                className={`w-2 h-2 rounded-full ${
-                  currentSlide === index 
-                    ? 'bg-blue-500' 
-                    : `${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'}`
-                }`}
-                onClick={() => setCurrentSlide(index)}
-              />
-            ))}
-          </div>
         </div>
 
-        {/* Right Column - 1 unit width */}
-        <div className="md:col-span-1 space-y-6">
-          {rightNews.map((news) => (
-            <Link href={`/news/${news.id}`} key={news.id}>
-              <div className={`group cursor-pointer pb-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h2 className="text-lg font-bold mb-2 group-hover:underline line-clamp-2">{news.title}</h2>
-                <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} line-clamp-2`}>
-                  {news.description}
-                </p>
-                <div className="text-xs">
-                  <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {news.time} | {news.category}
-                  </span>
+        {/* Latest News Grid */}
+        <div className="grid grid-rows-2 gap-6">
+          {[1, 2].map((item) => (
+            <div key={item} className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+              <div className="flex h-full">
+                <img 
+                  src="https://via.placeholder.com/300x200" 
+                  alt="News thumbnail" 
+                  className="w-1/3 object-cover"
+                />
+                <div className="p-4 w-2/3">
+                  <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
+                    Latest News Title {item}
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-2">
+                    A brief description of the news story.
+                  </p>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">1 hour ago</span>
                 </div>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
-      </div>
+      </section>
+
+      {/* News Categories */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[1, 2, 3].map((item) => (
+          <div key={item} className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <img 
+              src="https://via.placeholder.com/400x300" 
+              alt="Category thumbnail" 
+              className="w-full h-48 object-cover"
+            />
+            <div className="p-4">
+              <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
+                Category Title {item}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300 text-sm">
+                Brief description of this category's latest news.
+              </p>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      {/* Recent News List */}
+      <section className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Recent News</h2>
+        <div className="space-y-4">
+          {[1, 2, 3, 4].map((item) => (
+            <div key={item} className="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-0">
+              <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
+                Recent News Title {item}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300 text-sm mb-2">
+                A brief description of the recent news story.
+              </p>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500 dark:text-gray-400">30 minutes ago</span>
+                <button className="text-blue-600 dark:text-blue-400 hover:underline">Read more</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
