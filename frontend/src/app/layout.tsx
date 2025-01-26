@@ -3,7 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
-import Navbar from '../components/Navbar'
+import { ToastProvider } from './context/ToastContext'
+import ClientLayout from './ClientLayout'
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,14 +22,13 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         <AuthProvider>
-          <ThemeProvider>
-            <div className="min-h-screen bg-white dark:bg-gray-900">
-              <Navbar />
-              <main className="container mx-auto px-4 py-6 text-gray-900 dark:text-gray-100">
+          <ToastProvider>
+            <ThemeProvider>
+              <ClientLayout>
                 {children}
-              </main>
-            </div>
-          </ThemeProvider>
+              </ClientLayout>
+            </ThemeProvider>
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>
