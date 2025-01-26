@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import SideMenu from "./components/SideMenu";
 import { useTheme } from './context/ThemeContext';
 import { useAuth } from './context/AuthContext';
+import { useToast } from './context/ToastContext';
 import { useRouter } from 'next/navigation';
 
 export default function ClientLayout({
@@ -16,6 +17,7 @@ export default function ClientLayout({
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -41,11 +43,12 @@ export default function ClientLayout({
   const handleLogout = () => {
     logout();
     setIsProfileMenuOpen(false);
+    showToast('Successfully logged out', 'success');
     router.push('/');
   };
 
   return (
-    <>
+    <div className={`min-h-screen flex flex-col ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-black'}`}>
       <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
       
       <header className={`sticky top-0 z-40 ${isDarkMode ? 'bg-black text-white' : 'bg-white text-black'}`}>
@@ -95,24 +98,24 @@ export default function ClientLayout({
                     <div className="py-1" role="menu">
                       <div className="px-4 py-2 text-sm border-b border-gray-700">
                         <p className="font-medium">{user.name}</p>
-                        <p className="text-gray-500">{user.role.toLowerCase()}</p>
+                        <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{user.role.toLowerCase()}</p>
                       </div>
                       <Link
                         href="/profile"
-                        className="block px-4 py-2 text-sm hover:bg-gray-800"
+                        className={`block px-4 py-2 text-sm ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
                         onClick={() => setIsProfileMenuOpen(false)}
                       >
                         Profile Settings
                       </Link>
                       <button
                         onClick={toggleTheme}
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-800"
+                        className={`w-full text-left px-4 py-2 text-sm ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
                       >
                         {isDarkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
                       </button>
                       <button
                         onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-gray-800"
+                        className={`w-full text-left px-4 py-2 text-sm text-red-500 ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
                       >
                         Sign Out
                       </button>
@@ -173,7 +176,10 @@ export default function ClientLayout({
           </div>
         </nav>
       </header>
-      <main className={isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}>{children}</main>
-    </>
+
+      <main className="flex-1 container mx-auto px-4 py-6">
+        {children}
+      </main>
+    </div>
   );
 } 
