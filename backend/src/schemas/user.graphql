@@ -3,12 +3,19 @@ type User {
   name: String!
   email: String!
   role: UserRole!
+  userType: UserType!
 }
 
 enum UserRole {
   EDITOR
   JOURNALIST
   ADMIN
+  READER
+}
+
+enum UserType {
+  STAFF
+  PUBLIC
 }
 
 input RegisterUserInput {
@@ -16,6 +23,7 @@ input RegisterUserInput {
   email: String!
   password: String!
   role: UserRole
+  userType: UserType
 }
 
 input LoginUserInput {
@@ -28,6 +36,7 @@ input UpdateUserInput {
   email: String
   password: String
   role: UserRole
+  userType: UserType
 }
 
 type AuthPayload {
