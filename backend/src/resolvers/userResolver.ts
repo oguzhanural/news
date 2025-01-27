@@ -7,7 +7,8 @@ interface UserInput {
   name: string;
   email: string;
   password: string;
-  role?: 'EDITOR' | 'JOURNALIST' | 'ADMIN';
+  role?: 'EDITOR' | 'JOURNALIST' | 'ADMIN' | 'READER';
+  userType?: 'STAFF' | 'PUBLIC';
 }
 
 interface LoginInput {
@@ -77,10 +78,24 @@ export const userResolver = {
           });
         }
 
-        // Create user with plain password - it will be hashed by the pre-save middleware
+        // Set default values based on registration type
+        const userType = input.userType || 'PUBLIC';
+        let role = input.role;
+
+        // Enforce role restrictions based on userType
+        if (userType === 'PUBLIC') {
+          role = 'READER';
+        } else if (userType === 'STAFF') {
+          if (!role || role === 'READER') {
+            role = 'JOURNALIST';
+          }
+        }
+
+        // Create user with determined role and type
         const user = new User({
           ...input,
-          role: input.role || 'JOURNALIST'
+          role,
+          userType
         });
         await user.save();
 
@@ -96,7 +111,8 @@ export const userResolver = {
             id: user._id,
             name: user.name,
             email: user.email,
-            role: user.role
+            role: user.role,
+            userType: user.userType
           }
         };
       } catch (error: unknown) {
@@ -143,7 +159,8 @@ export const userResolver = {
             id: user._id,
             name: user.name,
             email: user.email,
-            role: user.role
+            role: user.role,
+            userType: user.userType
           }
         };
       } catch (error: unknown) {
@@ -186,19 +203,18 @@ export const userResolver = {
           });
         }
 
-        // Validate role updates
-        if (input.role) {
-          // Only admin can update roles
+        // Validate role and userType updates
+        if (input.role || input.userType) {
+          // Only admin can update roles and user types
           if (currentUser.role !== 'ADMIN') {
-            throw new GraphQLError('Not authorized to update role', {
+            throw new GraphQLError('Not authorized to update role or user type', {
               extensions: { code: 'FORBIDDEN' }
             });
           }
           
-          // Validate role enum value
-          const validRoles = ['EDITOR', 'JOURNALIST', 'ADMIN'];
-          if (!validRoles.includes(input.role)) {
-            throw new GraphQLError('Invalid role value', {
+          // Validate role-userType combination
+          if (input.userType === 'PUBLIC' && input.role && input.role !== 'READER') {
+            throw new GraphQLError('Public users can only have READER role', {
               extensions: { code: 'BAD_USER_INPUT' }
             });
           }
