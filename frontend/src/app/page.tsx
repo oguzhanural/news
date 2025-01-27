@@ -14,7 +14,7 @@ interface NewsItem {
   imageUrl?: string; // Made optional for right column
 }
 
-export default function Home() {
+export default function HomePage() {
   const { isDarkMode } = useTheme();
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -94,94 +94,78 @@ export default function Home() {
 
   return (
     <div className="space-y-8">
-      {/* Featured News */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-          <img 
-            src="https://via.placeholder.com/600x400" 
-            alt="Featured news" 
-            className="w-full h-64 object-cover"
-          />
+      {/* Featured Story */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className={`md:col-span-2 rounded-lg overflow-hidden ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+          <div className="relative h-[400px]">
+            <Image
+              src="https://ichef.bbci.co.uk/ace/ws/800/cpsprodpb/609a/live/81a35840-da1c-11ef-b9e5-01711ed04ef7.jpg.webp"
+              alt="Featured story"
+              fill
+              style={{ objectFit: 'cover' }}
+            />
+          </div>
           <div className="p-6">
-            <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">
-              Featured Story Title
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-4">
+            <h2 className="text-2xl font-bold mb-2">Featured Story Title</h2>
+            <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               A brief description of the featured story goes here. This should be engaging and make readers want to click through.
             </p>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500 dark:text-gray-400">2 hours ago</span>
-              <button className="text-blue-600 dark:text-blue-400 hover:underline">Read more</button>
+              <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>2 hours ago</span>
+              <Link href="/story/1" className="text-blue-500 hover:text-blue-600">Read more</Link>
             </div>
           </div>
         </div>
 
-        {/* Latest News Grid */}
-        <div className="grid grid-rows-2 gap-6">
-          {[1, 2].map((item) => (
-            <div key={item} className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-              <div className="flex h-full">
-                <img 
-                  src="https://via.placeholder.com/300x200" 
-                  alt="News thumbnail" 
-                  className="w-1/3 object-cover"
-                />
-                <div className="p-4 w-2/3">
-                  <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                    Latest News Title {item}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-2">
+        {/* Latest News Column */}
+        <div className="space-y-8 flex flex-col">
+          {[1, 2].map((index) => (
+            <Link href={`/news/${index}`} key={index}>
+              <div className={`rounded-lg overflow-hidden ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'} hover:opacity-90 transition-opacity`}>
+                <div className="relative h-48">
+                  <Image
+                    src="/images/latest.jpg"
+                    alt={`Latest news ${index}`}
+                    fill
+                    style={{ objectFit: 'cover' }}
+                  />
+                </div>
+                <div className="p-4">
+                  <h3 className="font-bold mb-2">Latest News Title {index}</h3>
+                  <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     A brief description of the news story.
                   </p>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">1 hour ago</span>
+                  <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>1 hour ago</span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
-      </section>
+      </div>
 
-      {/* News Categories */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[1, 2, 3].map((item) => (
-          <div key={item} className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-            <img 
-              src="https://via.placeholder.com/400x300" 
-              alt="Category thumbnail" 
-              className="w-full h-48 object-cover"
-            />
-            <div className="p-4">
-              <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                Category Title {item}
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">
-                Brief description of this category's latest news.
-              </p>
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* Recent News List */}
-      <section className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Recent News</h2>
-        <div className="space-y-4">
-          {[1, 2, 3, 4].map((item) => (
-            <div key={item} className="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-0">
-              <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                Recent News Title {item}
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300 text-sm mb-2">
-                A brief description of the recent news story.
-              </p>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500 dark:text-gray-400">30 minutes ago</span>
-                <button className="text-blue-600 dark:text-blue-400 hover:underline">Read more</button>
+      {/* Category Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {[1, 2, 3].map((index) => (
+          <Link href={`/category/${index}`} key={index}>
+            <div className={`rounded-lg overflow-hidden ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'} hover:opacity-90 transition-opacity`}>
+              <div className="relative h-48">
+                <Image
+                  src="/images/category.jpg"
+                  alt={`Category ${index}`}
+                  fill
+                  style={{ objectFit: 'cover' }}
+                />
+              </div>
+              <div className="p-4">
+                <h3 className="font-bold mb-2">Category Title {index}</h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  Brief description of this category's latest news.
+                </p>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
