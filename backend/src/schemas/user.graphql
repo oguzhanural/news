@@ -3,7 +3,9 @@ type User {
   name: String!
   email: String!
   role: UserRole!
-  userType: UserType!
+  registrationSource: RegistrationSource!
+  createdAt: String!
+  updatedAt: String!
 }
 
 enum UserRole {
@@ -13,9 +15,9 @@ enum UserRole {
   READER
 }
 
-enum UserType {
-  STAFF
-  PUBLIC
+enum RegistrationSource {
+  PUBLIC_PORTAL
+  ADMIN_PORTAL
 }
 
 input RegisterUserInput {
@@ -23,7 +25,7 @@ input RegisterUserInput {
   email: String!
   password: String!
   role: UserRole
-  userType: UserType
+  registrationSource: RegistrationSource!
 }
 
 input LoginUserInput {
@@ -35,8 +37,12 @@ input UpdateUserInput {
   name: String
   email: String
   password: String
-  role: UserRole
-  userType: UserType
+  currentPassword: String
+}
+
+input UpdateUserRoleInput {
+  userId: ID!
+  role: UserRole!
 }
 
 type AuthPayload {
@@ -45,13 +51,15 @@ type AuthPayload {
 }
 
 type Query {
+  me: User!
   user(id: ID!): User
-  users: [User!]!
+  users(role: UserRole): [User!]!
 }
 
 type Mutation {
   registerUser(input: RegisterUserInput!): AuthPayload!
   loginUser(input: LoginUserInput!): AuthPayload!
   updateUser(id: ID!, input: UpdateUserInput!): User!
+  updateUserRole(input: UpdateUserRoleInput!): User!
   deleteUser(id: ID!): Boolean!
 } 
