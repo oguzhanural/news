@@ -4,6 +4,7 @@ type User {
   name: String!
   email: String!
   role: UserRole!
+  registrationSource: RegistrationSource!
   createdAt: String!
   updatedAt: String!
 }
@@ -36,6 +37,12 @@ enum UserRole {
   EDITOR
   JOURNALIST
   ADMIN
+  READER
+}
+
+enum RegistrationSource {
+  PUBLIC_PORTAL
+  ADMIN_PORTAL
 }
 
 enum NewsStatus {
@@ -62,9 +69,10 @@ input RegisterUserInput {
   email: String!
   password: String!
   role: UserRole
+  registrationSource: RegistrationSource!
 }
 
-input LoginInput {
+input LoginUserInput {
   email: String!
   password: String!
 }
@@ -73,7 +81,12 @@ input UpdateUserInput {
   name: String
   email: String
   password: String
-  role: UserRole
+  currentPassword: String
+}
+
+input UpdateUserRoleInput {
+  userId: ID!
+  role: UserRole!
 }
 
 input CreateCategoryInput {
@@ -162,9 +175,9 @@ type SearchNewsResult {
 # Root types
 type Query {
   # User queries
-  user(id: ID!): User!
-  users: [User!]!
-  me: User
+  me: User!
+  user(id: ID!): User
+  users(role: UserRole): [User!]!
   
   # Category queries
   category(id: ID!): Category!
@@ -179,8 +192,9 @@ type Query {
 type Mutation {
   # User mutations
   registerUser(input: RegisterUserInput!): AuthPayload!
-  loginUser(input: LoginInput!): AuthPayload!
+  loginUser(input: LoginUserInput!): AuthPayload!
   updateUser(id: ID!, input: UpdateUserInput!): User!
+  updateUserRole(input: UpdateUserRoleInput!): User!
   deleteUser(id: ID!): Boolean!
   
   # Category mutations
