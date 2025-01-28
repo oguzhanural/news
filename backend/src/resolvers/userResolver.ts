@@ -8,19 +8,59 @@ interface UserInput {
   email: string;
   password: string;
   role?: 'EDITOR' | 'JOURNALIST' | 'ADMIN' | 'READER';
-  userType?: 'STAFF' | 'PUBLIC';
+  registrationSource: 'PUBLIC_PORTAL' | 'ADMIN_PORTAL';
 }
 
-interface LoginInput {
+interface LoginUserInput {
   email: string;
   password: string;
 }
 
+interface UpdateRoleInput {
+  userId: string;
+  role: 'EDITOR' | 'JOURNALIST' | 'ADMIN' | 'READER';
+}
+
+const validateAdminAccess = async (userId: string) => {
+  const user = await User.findById(userId);
+  if (!user || user.role !== 'ADMIN') {
+    throw new GraphQLError('Admin access required', {
+      extensions: { code: 'FORBIDDEN' }
+    });
+  }
+  return user;
+};
+
 export const userResolver = {
   Query: {
-    // Get user by ID
-    user: async (_: any, { id }: { id: string }) => {
+    // Get current user
+    me: async (_: any, __: any, context: any) => {
       try {
+        if (!context.userId) {
+          throw new GraphQLError('Authentication required', {
+            extensions: { code: 'UNAUTHENTICATED' }
+          });
+        }
+
+        const user = await User.findById(context.userId).select('-password');
+        if (!user) {
+          throw new GraphQLError('User not found', {
+            extensions: { code: 'NOT_FOUND' }
+          });
+        }
+        return user;
+      } catch (error: unknown) {
+        if (error instanceof GraphQLError) throw error;
+        throw new GraphQLError('Error fetching user profile', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+
+    // Get user by ID (admin only)
+    user: async (_: any, { id }: { id: string }, context: any) => {
+      try {
+        await validateAdminAccess(context.userId);
         const user = await User.findById(id).select('-password');
         if (!user) {
           throw new GraphQLError('User not found', {
@@ -29,9 +69,7 @@ export const userResolver = {
         }
         return user;
       } catch (error: unknown) {
-        if (error instanceof GraphQLError) {
-          throw error;
-        }
+        if (error instanceof GraphQLError) throw error;
         throw new GraphQLError('Error fetching user', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' }
         });
@@ -39,27 +77,14 @@ export const userResolver = {
     },
 
     // Get all users (admin only)
-    users: async (_: any, __: any, context: any) => {
+    users: async (_: any, { role }: { role?: string }, context: any) => {
       try {
-        if (!context.userId) {
-          throw new GraphQLError('Authentication required', {
-            extensions: { code: 'UNAUTHENTICATED' }
-          });
-        }
-
-        const currentUser = await User.findById(context.userId);
-        if (currentUser?.role !== 'ADMIN') {
-          throw new GraphQLError('Not authorized', {
-            extensions: { code: 'FORBIDDEN' }
-          });
-        }
-
-        const users = await User.find().select('-password');
+        await validateAdminAccess(context.userId);
+        const query = role ? { role } : {};
+        const users = await User.find(query).select('-password');
         return users;
       } catch (error: unknown) {
-        if (error instanceof GraphQLError) {
-          throw error;
-        }
+        if (error instanceof GraphQLError) throw error;
         throw new GraphQLError('Error fetching users', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' }
         });
@@ -78,24 +103,19 @@ export const userResolver = {
           });
         }
 
-        // Set default values based on registration type
-        const userType = input.userType || 'PUBLIC';
+        // Set role based on registration source
         let role = input.role;
-
-        // Enforce role restrictions based on userType
-        if (userType === 'PUBLIC') {
+        if (input.registrationSource === 'PUBLIC_PORTAL') {
           role = 'READER';
-        } else if (userType === 'STAFF') {
-          if (!role || role === 'READER') {
-            role = 'JOURNALIST';
-          }
+        } else if (input.registrationSource === 'ADMIN_PORTAL' && !role) {
+          throw new GraphQLError('Role is required for admin portal registration', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
         }
 
-        // Create user with determined role and type
         const user = new User({
           ...input,
-          role,
-          userType
+          role
         });
         await user.save();
 
@@ -112,18 +132,13 @@ export const userResolver = {
             name: user.name,
             email: user.email,
             role: user.role,
-            userType: user.userType
+            registrationSource: user.registrationSource,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
           }
         };
       } catch (error: unknown) {
-        if (error instanceof GraphQLError) {
-          throw error;
-        }
-        if (error instanceof Error) {
-          throw new GraphQLError(`Error registering user: ${error.message}`, {
-            extensions: { code: 'INTERNAL_SERVER_ERROR' }
-          });
-        }
+        if (error instanceof GraphQLError) throw error;
         throw new GraphQLError('Error registering user', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' }
         });
@@ -131,7 +146,7 @@ export const userResolver = {
     },
 
     // Login user
-    loginUser: async (_: any, { input }: { input: LoginInput }) => {
+    loginUser: async (_: any, { input }: { input: LoginUserInput }) => {
       try {
         const user = await User.findOne({ email: input.email });
         if (!user) {
@@ -160,35 +175,28 @@ export const userResolver = {
             name: user.name,
             email: user.email,
             role: user.role,
-            userType: user.userType
+            registrationSource: user.registrationSource,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
           }
         };
       } catch (error: unknown) {
-        if (error instanceof GraphQLError) {
-          throw error;
-        }
-        if (error instanceof Error) {
-          throw new GraphQLError(`Login error: ${error.message}`, {
-            extensions: { code: 'INTERNAL_SERVER_ERROR' }
-          });
-        }
+        if (error instanceof GraphQLError) throw error;
         throw new GraphQLError('Login error', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' }
         });
       }
     },
 
-    // Update user
+    // Update user (self or admin only)
     updateUser: async (_: any, { id, input }: { id: string, input: Partial<UserInput> }, context: any) => {
       try {
-        // Check authentication
         if (!context.userId) {
           throw new GraphQLError('Authentication required', {
             extensions: { code: 'UNAUTHENTICATED' }
           });
         }
 
-        // Get current user
         const currentUser = await User.findById(context.userId);
         if (!currentUser) {
           throw new GraphQLError('User not found', {
@@ -203,24 +211,14 @@ export const userResolver = {
           });
         }
 
-        // Validate role and userType updates
-        if (input.role || input.userType) {
-          // Only admin can update roles and user types
-          if (currentUser.role !== 'ADMIN') {
-            throw new GraphQLError('Not authorized to update role or user type', {
-              extensions: { code: 'FORBIDDEN' }
-            });
-          }
-          
-          // Validate role-userType combination
-          if (input.userType === 'PUBLIC' && input.role && input.role !== 'READER') {
-            throw new GraphQLError('Public users can only have READER role', {
-              extensions: { code: 'BAD_USER_INPUT' }
-            });
-          }
+        // Prevent role updates through this mutation
+        if (input.role) {
+          throw new GraphQLError('Role updates not allowed through this mutation', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
         }
 
-        // If password is being updated, hash it
+        // Hash password if it's being updated
         let updateData = { ...input };
         if (input.password) {
           const salt = await bcrypt.genSalt(10);
@@ -241,55 +239,46 @@ export const userResolver = {
 
         return updatedUser;
       } catch (error: unknown) {
-        if (error instanceof GraphQLError) {
-          throw error;
-        }
-        if (error instanceof Error) {
-          throw new GraphQLError(`Error updating user: ${error.message}`, {
-            extensions: { code: 'INTERNAL_SERVER_ERROR' }
-          });
-        }
+        if (error instanceof GraphQLError) throw error;
         throw new GraphQLError('Error updating user', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' }
         });
       }
     },
 
-    // Delete user
-    deleteUser: async (_: any, { id }: { id: string }, context: any) => {
+    // Update user role (admin only)
+    updateUserRole: async (_: any, { input }: { input: UpdateRoleInput }, context: any) => {
       try {
-        // Check authentication
-        if (!context.userId) {
-          throw new GraphQLError('Authentication required', {
-            extensions: { code: 'UNAUTHENTICATED' }
-          });
-        }
+        await validateAdminAccess(context.userId);
 
-        // Only allow users to delete their own profile or admin to delete any profile
-        const currentUser = await User.findById(context.userId);
-        if (context.userId !== id && currentUser?.role !== 'ADMIN') {
-          throw new GraphQLError('Not authorized', {
-            extensions: { code: 'FORBIDDEN' }
-          });
-        }
-
-        const user = await User.findByIdAndDelete(id);
+        const user = await User.findById(input.userId);
         if (!user) {
           throw new GraphQLError('User not found', {
             extensions: { code: 'NOT_FOUND' }
           });
         }
 
-        return true;
+        user.role = input.role;
+        await user.save();
+
+        return user;
       } catch (error: unknown) {
-        if (error instanceof GraphQLError) {
-          throw error;
-        }
-        if (error instanceof Error) {
-          throw new GraphQLError(`Error deleting user: ${error.message}`, {
-            extensions: { code: 'INTERNAL_SERVER_ERROR' }
-          });
-        }
+        if (error instanceof GraphQLError) throw error;
+        throw new GraphQLError('Error updating user role', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+
+    // Delete user (admin only)
+    deleteUser: async (_: any, { id }: { id: string }, context: any) => {
+      try {
+        await validateAdminAccess(context.userId);
+
+        const result = await User.findByIdAndDelete(id);
+        return !!result;
+      } catch (error: unknown) {
+        if (error instanceof GraphQLError) throw error;
         throw new GraphQLError('Error deleting user', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' }
         });
