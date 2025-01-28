@@ -6,7 +6,9 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: 'EDITOR' | 'JOURNALIST' | 'ADMIN' | 'READER';
-  userType: 'STAFF' | 'PUBLIC';
+  registrationSource: 'PUBLIC_PORTAL' | 'ADMIN_PORTAL';
+  createdAt: Date;
+  updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -43,13 +45,14 @@ const UserSchema = new Schema<IUser>({
     default: 'READER',
     index: true
   },
-  userType: {
+  registrationSource: {
     type: String,
     enum: {
-      values: ['STAFF', 'PUBLIC'],
-      message: '{VALUE} is not a valid user type'
+      values: ['PUBLIC_PORTAL', 'ADMIN_PORTAL'],
+      message: '{VALUE} is not a valid registration source'
     },
-    default: 'PUBLIC',
+    required: true,
+    default: 'PUBLIC_PORTAL',
     index: true
   }
 }, {
@@ -81,6 +84,6 @@ UserSchema.methods.comparePassword = async function(candidatePassword: string): 
 // Add compound indexes for better query performance
 UserSchema.index({ email: 1, role: 1 });
 UserSchema.index({ name: 1, email: 1 });
-UserSchema.index({ userType: 1, role: 1 });
+UserSchema.index({ registrationSource: 1, role: 1 });
 
 export const User = mongoose.model<IUser>('User', UserSchema); 
