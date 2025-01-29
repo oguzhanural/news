@@ -161,17 +161,46 @@ export default function ClientLayout({
         <nav className={`${isDarkMode ? 'bg-black border-gray-700' : 'bg-white border-gray-200'} border-t`}>
           <div className="container mx-auto px-4">
             <ul className="flex items-center justify-center space-x-6 overflow-x-auto py-2 text-sm">
-              <li><Link href="/" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>Home</Link></li>
-              <li><Link href="/news" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>News</Link></li>
-              <li><Link href="/sport" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>Sport</Link></li>
-              <li><Link href="/business" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>Business</Link></li>
-              <li><Link href="/innovation" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>Innovation</Link></li>
-              <li><Link href="/culture" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>Culture</Link></li>
-              <li><Link href="/arts" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>Arts</Link></li>
-              <li><Link href="/travel" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>Travel</Link></li>
-              <li><Link href="/earth" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>Earth</Link></li>
-              <li><Link href="/video" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>Video</Link></li>
-              <li><Link href="/live" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>Live</Link></li>
+              <li>
+                <Link href="/" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>
+                  Home
+                </Link>
+              </li>
+              <li>
+                <Link href="/category/news" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>
+                  News
+                </Link>
+              </li>
+              <li>
+                <Link href="/category/sport" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>
+                  Sport
+                </Link>
+              </li>
+              <li>
+                <Link href="/category/business" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>
+                  Business
+                </Link>
+              </li>
+              <li>
+                <Link href="/category/technology" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>
+                  Technology
+                </Link>
+              </li>
+              <li>
+                <Link href="/category/entertainment" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>
+                  Entertainment
+                </Link>
+              </li>
+              <li>
+                <Link href="/category/health" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>
+                  Health
+                </Link>
+              </li>
+              <li>
+                <Link href="/category/science" className={`${isDarkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}>
+                  Science
+                </Link>
+              </li>
             </ul>
           </div>
         </nav>
