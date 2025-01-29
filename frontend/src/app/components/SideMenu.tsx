@@ -48,19 +48,13 @@ export default function SideMenu({ isOpen, onClose, onSearch }: SideMenuProps) {
 
   const menuItems = [
     { title: 'Home', path: '/', hasChildren: false },
-    { title: 'News', path: '/news', hasChildren: true },
-    { title: 'Sport', path: '/sport', hasChildren: false },
-    { title: 'Business', path: '/business', hasChildren: true },
-    { title: 'Innovation', path: '/innovation', hasChildren: true },
-    { title: 'Culture', path: '/culture', hasChildren: true },
-    { title: 'Arts', path: '/arts', hasChildren: true },
-    { title: 'Travel', path: '/travel', hasChildren: true },
-    { title: 'Earth', path: '/earth', hasChildren: true },
-    { title: 'Video', path: '/video', hasChildren: false },
-    { title: 'Live', path: '/live', hasChildren: true },
-    { title: 'Audio', path: '/audio', hasChildren: false },
-    { title: 'Weather', path: '/weather', hasChildren: false },
-    { title: 'Newsletters', path: '/newsletters', hasChildren: false },
+    { title: 'News', path: '/category/news', hasChildren: true },
+    { title: 'Sport', path: '/category/sport', hasChildren: true },
+    { title: 'Business', path: '/category/business', hasChildren: true },
+    { title: 'Technology', path: '/category/technology', hasChildren: true },
+    { title: 'Entertainment', path: '/category/entertainment', hasChildren: true },
+    { title: 'Health', path: '/category/health', hasChildren: true },
+    { title: 'Science', path: '/category/science', hasChildren: true }
   ];
 
   return (
