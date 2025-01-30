@@ -211,6 +211,16 @@ export const userResolver = {
           });
         }
 
+        // Check email uniqueness if email is being updated
+        if (input.email) {
+          const existingUser = await User.findOne({ email: input.email }).lean();
+          if (existingUser && existingUser._id && existingUser._id.toString() !== id) {
+            throw new GraphQLError('You cannot use this mail. Please try another mail address', {
+              extensions: { code: 'BAD_USER_INPUT' }
+            });
+          }
+        }
+
         // Prevent role updates through this mutation
         if (input.role) {
           throw new GraphQLError('Role updates not allowed through this mutation', {
