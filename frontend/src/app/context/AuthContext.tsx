@@ -27,7 +27,33 @@ interface AuthContextType {
   logout: () => void;
   register: (name: string, email: string, password: string) => Promise<void>;
   updateUser: (data: UpdateUserInput) => Promise<void>;
+  validatePassword: (password: string) => { isValid: boolean; errors: string[] };
 }
+
+const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  
+  if (password.length < 8) {
+    errors.push('Password must be at least 8 characters long');
+  }
+  if (!/[A-Z]/.test(password)) {
+    errors.push('Password must contain at least one uppercase letter');
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push('Password must contain at least one lowercase letter');
+  }
+  if (!/[0-9]/.test(password)) {
+    errors.push('Password must contain at least one number');
+  }
+  if (!/[!@#$%^&*]/.test(password)) {
+    errors.push('Password must contain at least one special character (!@#$%^&*)');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
@@ -37,6 +63,7 @@ const AuthContext = createContext<AuthContextType>({
   logout: () => {},
   register: async () => {},
   updateUser: async () => {},
+  validatePassword: () => ({ isValid: false, errors: [] }),
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -155,6 +182,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (name: string, email: string, password: string) => {
     try {
+      // Validate password strength before registration
+      const { isValid, errors } = validatePassword(password);
+      if (!isValid) {
+        throw new Error(errors[0]); // Throw first error if password is invalid
+      }
+
       const response = await fetch('http://localhost:4000/graphql', {
         method: 'POST',
         headers: {
@@ -257,7 +290,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, setUser, login, logout, register, updateUser }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      setUser, 
+      login, 
+      logout, 
+      register, 
+      updateUser,
+      validatePassword 
+    }}>
       {children}
     </AuthContext.Provider>
   );
