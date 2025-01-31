@@ -21,7 +21,7 @@ export default function SignInPage() {
   const [errors, setErrors] = useState<ValidationErrors>({});
   const { isDarkMode } = useTheme();
   const router = useRouter();
-  const { setUser } = useAuth();
+  const { login } = useAuth();
   const { showToast } = useToast();
 
   const validateForm = (): boolean => {
@@ -50,59 +50,12 @@ export default function SignInPage() {
 
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:4000/graphql', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: `
-            mutation LoginUser($input: LoginInput!) {
-              loginUser(input: $input) {
-                token
-                user {
-                  id
-                  name
-                  email
-                  role
-                }
-              }
-            }
-          `,
-          variables: {
-            input: {
-              email,
-              password
-            }
-          }
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.errors) {
-        setErrors({
-          general: data.errors[0].message || 'Login failed'
-        });
-        showToast(data.errors[0].message || 'Login failed', 'error');
-        return;
-      }
-
-      // Store the token and user data
-      localStorage.setItem('token', data.data.loginUser.token);
-      localStorage.setItem('user', JSON.stringify(data.data.loginUser.user));
-      
-      // Update auth context
-      setUser(data.data.loginUser.user);
-
-      // Redirect to home page
-      router.push('/');
-
+      await login(email, password);
       showToast('Successfully logged in', 'success');
-
+      router.push('/');
     } catch (error) {
       setErrors({
-        general: 'An error occurred during sign in. Please try again.'
+        general: error instanceof Error ? error.message : 'An error occurred during sign in. Please try again.'
       });
       showToast(error instanceof Error ? error.message : 'Login failed', 'error');
     } finally {
@@ -136,6 +89,8 @@ export default function SignInPage() {
             onChange={handleChange}
             margin="normal"
             required
+            error={!!errors.email}
+            helperText={errors.email}
           />
           
           <TextField
@@ -147,6 +102,8 @@ export default function SignInPage() {
             onChange={handleChange}
             margin="normal"
             required
+            error={!!errors.password}
+            helperText={errors.password}
           />
 
           {errors.general && (
@@ -160,6 +117,7 @@ export default function SignInPage() {
             fullWidth
             variant="contained"
             sx={{ mt: 3, mb: 2 }}
+            disabled={isLoading}
           >
             {isLoading ? 'Signing in...' : 'Sign In'}
           </Button>
