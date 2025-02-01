@@ -194,6 +194,28 @@ The frontend will be available at `http://localhost:3000`
 
 ### Authentication
 
+#### Register User
+```graphql
+mutation {
+  registerUser(input: {
+    name: "User Name"
+    email: "email@example.com"
+    password: "password"
+    role: JOURNALIST
+    registrationSource: PUBLIC_PORTAL
+  }) {
+    token
+    user {
+      id
+      name
+      email
+      role
+      registrationSource
+    }
+  }
+}
+```
+
 #### Login
 ```graphql
 mutation {
@@ -212,22 +234,22 @@ mutation {
 }
 ```
 
-#### Register
+#### Update User
 ```graphql
 mutation {
-  registerUser(input: {
-    name: "User Name"
-    email: "email@example.com"
-    password: "password"
-    role: JOURNALIST
-  }) {
-    token
-    user {
-      id
-      name
-      email
-      role
+  updateUser(
+    id: "user-id"
+    input: {
+      name: "Updated Name"
+      email: "new-email@example.com"
+      password: "newPassword"
+      currentPassword: "oldPassword"
     }
+  ) {
+    id
+    name
+    email
+    role
   }
 }
 ```
@@ -243,11 +265,22 @@ mutation {
     summary: "Brief summary"
     categoryId: "category-id"
     tags: ["tag1", "tag2"]
+    images: [
+      {
+        url: "image-url",
+        isMain: true
+      }
+    ]
   }) {
     id
     title
     content
     status
+    slug
+    images {
+      url
+      isMain
+    }
   }
 }
 ```
@@ -260,10 +293,81 @@ mutation {
     title: "Updated Title"
     content: "Updated Content"
     status: PUBLISHED
+    categoryId: "new-category-id"
+    tags: ["updated-tag"]
   }) {
     id
     title
     status
+    category {
+      id
+      name
+    }
+  }
+}
+```
+
+#### Search News
+```graphql
+query {
+  searchNews(input: {
+    query: "search term"
+    status: PUBLISHED
+    categoryId: "optional-category-id"
+    tags: ["optional-tag"]
+    limit: 10
+    offset: 0
+  }) {
+    news {
+      id
+      title
+      summary
+      slug
+    }
+    total
+    hasMore
+  }
+}
+```
+
+### Category Operations
+
+#### Create Category
+```graphql
+mutation {
+  createCategory(input: {
+    name: "Category Name"
+  }) {
+    id
+    name
+    slug
+  }
+}
+```
+
+#### Update Category
+```graphql
+mutation {
+  updateCategory(
+    id: "category-id"
+    input: {
+      name: "Updated Category Name"
+    }
+  ) {
+    id
+    name
+    slug
+  }
+}
+```
+
+#### Get Categories
+```graphql
+query {
+  categories {
+    id
+    name
+    slug
   }
 }
 ```
@@ -355,4 +459,4 @@ This project is licensed under the MIT License.
 
 ## Contact
 
-Project Link: [https://github.com/oguzhanural/news-website](https://github.com/oguzhanural/news-website)
+Project Link: [https://github.com/oguzhanural/news](https://github.com/oguzhanural/news)
