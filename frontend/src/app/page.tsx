@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useTheme } from './context/ThemeContext';
 import Link from 'next/link';
 import Image from 'next/image';
+import WeekendReads from './components/WeekendReads';
 
 interface NewsItem {
   id: number;
@@ -13,6 +14,28 @@ interface NewsItem {
   time: string;
   imageUrl?: string; // Made optional for right column
 }
+
+// Sample data for weekend reads
+const weekendArticles = [
+  {
+    id: '1',
+    title: "The mystery of why Jane Austen's letters were destroyed",
+    description: "Austen is one of the greatest writers in the English language – but relatively little is known about her. And that's in part because of an act that infuriates many to this day.",
+    imageUrl: "/images/jane-austen.jpg",
+    category: "Culture",
+    publishedAt: new Date('2024-01-28'),
+    slug: 'jane-austen-letters-mystery'
+  },
+  {
+    id: '2',
+    title: "A Tibetan snack kneaded to ward off bad luck",
+    description: "This ancient snack is synonymous with Tibetan New Year and will soon be prepared by millions of families.",
+    imageUrl: "/images/tibetan-snack.jpg",
+    category: "Travel",
+    publishedAt: new Date('2024-01-30'),
+    slug: 'tibetan-new-year-snack'
+  }
+];
 
 export default function HomePage() {
   const { isDarkMode } = useTheme();
@@ -166,6 +189,8 @@ export default function HomePage() {
           </Link>
         ))}
       </div>
+
+      <WeekendReads articles={weekendArticles} />
     </div>
   );
 }
