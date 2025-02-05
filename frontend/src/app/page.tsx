@@ -5,6 +5,8 @@ import { useTheme } from './context/ThemeContext';
 import Link from 'next/link';
 import Image from 'next/image';
 import WeekendReads from './components/WeekendReads';
+import MoreNews from './components/MoreNews';
+import EditorsPicks from './components/EditorsPicks';
 
 interface NewsItem {
   id: number;
@@ -34,6 +36,94 @@ const weekendArticles = [
     category: "Travel",
     publishedAt: new Date('2024-01-30'),
     slug: 'tibetan-new-year-snack'
+  }
+];
+
+// Sample data for more news
+const moreNewsData = [
+  {
+    id: '1',
+    title: "Trump's tariffs hit China hard before - this time, it's ready",
+    category: "World",
+    timeAgo: "6 hrs ago",
+    slug: 'trump-tariffs-china'
+  },
+  {
+    id: '2',
+    title: "Shelling at busy Sudanese market 'fills mortuary with bodies'",
+    category: "Africa",
+    timeAgo: "3 hrs ago",
+    slug: 'sudan-market-shelling'
+  },
+  {
+    id: '3',
+    title: "Families mourn loved ones who died in Kumbh Mela crush",
+    category: "Asia",
+    timeAgo: "2 days ago",
+    slug: 'kumbh-mela-crush'
+  },
+  {
+    id: '4',
+    title: "Tax relief for Indian middle class - but will it boost economy?",
+    category: "Asia",
+    timeAgo: "1 day ago",
+    slug: 'india-tax-relief'
+  },
+  {
+    id: '5',
+    title: "Mercedes raced by Moss and Fangio sells for record £42.75m",
+    category: "Sport",
+    timeAgo: "5 hrs ago",
+    slug: 'mercedes-auction-record'
+  }
+];
+
+// Sample data for editor's picks
+const editorsPicksData = [
+  {
+    id: '1',
+    title: "Meet the world's first recipient of an AI-powered bionic arm",
+    description: "Sarah De Lagarde lost an arm and a leg after being hit by two trains in London. Now, she has an AI-powered arm.",
+    imageUrl: "/images/bionic-arm.jpg",
+    category: "AI v the Mind",
+    date: "17 Jan 2025",
+    slug: 'ai-bionic-arm'
+  },
+  {
+    id: '2',
+    title: "Huldufólk: Iceland's mythical world of hidden people",
+    description: "BBC Reel finds out if Icelanders really believe in little hidden people.",
+    imageUrl: "/images/iceland-hidden.jpg",
+    category: "Myths and Legends",
+    date: "2 Mar 2023",
+    slug: 'iceland-hidden-people'
+  },
+  {
+    id: '3',
+    title: "Homo juluensis: Possible 'new ancient human' identified",
+    description: "Researchers may have identified a new human species that lived around 300,000 years ago in Asia.",
+    imageUrl: "/images/ancient-human.jpg",
+    category: "Science",
+    date: "6 Jan 2025",
+    slug: 'new-human-species'
+  },
+  {
+    id: '4',
+    title: "The butterfly effect: What is chaos theory?",
+    description: "The world was explained through the laws of physics until a meteorologist saw the pattern of chaos.",
+    imageUrl: "/images/chaos-theory.jpg",
+    category: "Science",
+    date: "23 Oct 2023",
+    slug: 'chaos-theory'
+  },
+  {
+    id: '5',
+    title: "How Jamie Foxx helped Cameron Diaz back in the spotlight",
+    description: "Actress Cameron Diaz returns to acting after 'retiring' for several years.",
+    imageUrl: "/images/cameron-diaz.jpg",
+    category: "Culture",
+    date: "18 Jan 2025",
+    slug: 'cameron-diaz-return'
   }
 ];
 
@@ -190,7 +280,14 @@ export default function HomePage() {
         ))}
       </div>
 
+      {/* Weekend Reads */}
       <WeekendReads articles={weekendArticles} />
+      
+      {/* More News */}
+      <MoreNews news={moreNewsData} />
+      
+      {/* Editor's Picks */}
+      <EditorsPicks articles={editorsPicksData} />
     </div>
   );
 }
