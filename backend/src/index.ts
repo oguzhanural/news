@@ -83,9 +83,31 @@ class Server {
   }
 
   private async setupMiddleware() {
-    // CORS yapılandırması
-    const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
-    this.app.use(cors({ origin: corsOrigin, credentials: true }));
+    // CORS configuration with multiple origins
+    const allowedOrigins = [
+      'http://localhost:3000',  // Main frontend
+      'http://localhost:3001',  // Admin dashboard
+      process.env.CORS_ORIGIN   // Any additional origin from env
+    ].filter(Boolean); // Remove any undefined values
+
+    this.app.use(
+      cors({
+        origin: function(origin, callback) {
+          // Allow requests with no origin (like mobile apps or curl requests)
+          if (!origin) return callback(null, true);
+          
+          if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+            callback(null, true);
+          } else {
+            logger.warn(`Blocked request from unauthorized origin: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+          }
+        },
+        credentials: true,
+        methods: ['GET', 'POST', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'apollo-require-preflight']
+      })
+    );
 
     // JSON body parser
     this.app.use(express.json());
