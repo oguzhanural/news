@@ -11,7 +11,7 @@ import { verifyToken } from './utils/jwt';
 import { expressMiddleware } from '@apollo/server/express4';
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
-import http from 'http';
+import http, { request } from 'http';
 import winston from 'winston';
 import dotenv from 'dotenv';
 
@@ -51,8 +51,13 @@ const resolvers = {
   News: newsResolver.News,
 };
 
+// Define the context interface
+interface Context {
+  userId: string | null;
+}
+
 class Server {
-  private server: ApolloServer;
+  private server: ApolloServer<Context>;
   private app: Application;
   private httpServer: http.Server;
   private isShuttingDown = false;
@@ -64,8 +69,11 @@ class Server {
   constructor() {
     this.app = express();
     this.httpServer = http.createServer(this.app);
+    // HTTP sunucusu için zaman aşımı ayarları
+    this.httpServer.timeout = 120000; // 2 minute
+    this.httpServer.keepAliveTimeout = 60000; // 1 minute
 
-    this.server = new ApolloServer({
+    this.server = new ApolloServer<Context>({
       typeDefs,
       resolvers,
       formatError: (error) => {
@@ -79,10 +87,63 @@ class Server {
       },
       csrfPrevention: true,
       cache: 'bounded',
+      plugins: [
+        {
+          async serverWillStart() {
+            logger.info('Apollo Server is starting...');
+            return {
+              async drainServer() {
+                logger.info('Apollo Server is draining connections...');
+              }
+            };
+        }
+      }
+      ],
+    });
+  }
+
+  private setupMongooseOptions() {
+    // Mongoose bağlantı seçeneklerini ayarla
+    // NOT: Mongoose 6+ sürümünde doğrudan mongoose.set() kullanımı yerine
+    // connectDB fonksiyonundaki bağlantı seçeneklerini güncellemeniz gerekir
+    logger.info('Setting up Mongoose connection options');
+    
+    // Düzenli ping mekanizması ekleyin
+    const pingInterval = setInterval(async () => {
+      if (mongoose.connection.readyState === 1 && !this.isShuttingDown) {
+        try {
+          // Hafif bir ping işlemi yap
+          await mongoose.connection.db?.admin().ping();
+          logger.debug('MongoDB ping successful');
+        } catch (error) {
+          logger.warn('MongoDB ping failed', { error });
+          // Bağlantıyı yeniden kurmayı dene
+          this.handleDatabaseError();
+        }
+      }
+    }, 60000); // Her dakika kontrol et
+    
+    // Sunucu kapanırken interval'i temizle
+    process.on('beforeExit', () => {
+      clearInterval(pingInterval);
     });
   }
 
   private async setupMiddleware() {
+
+  // request timeout middleware'i
+  const requestTimeout = (req: Request, res: Response, next: Function) => {
+    res.setTimeout(30000, () => {
+      logger.warn('Request timeout detected');
+      if (!res.headersSent) {
+        res.status(503).json({ error: 'Service temporarily unavailable, please try again' });
+      }
+    });
+    next();
+  };
+  
+  this.app.use(requestTimeout);
+
     // CORS configuration with multiple origins
     const allowedOrigins = [
       'http://localhost:3000',  // Main frontend
@@ -129,45 +190,70 @@ class Server {
     this.app.use(
       '/graphql',
       expressMiddleware(this.server, {
-        context: async ({ req }) => {
-          let userId: string | null = null;
+        context: async ({ req }: { req: Request }): Promise<Context> => {
+          // Get the token from the Authorization header
+          const token = req.headers.authorization?.split(' ')[1] || '';
+          
           try {
-            const authHeader = req.headers.authorization || '';
-            if (authHeader) {
-              const token = authHeader.replace('Bearer ', '');
-              userId = await verifyToken(token);
-            }
+            // Verify the token and get userId
+            const decoded = await verifyToken(token);
+            return { userId: decoded?.userId || null };
           } catch (error) {
-            logger.error('Error in context function', { error });
+            return { userId: null };
           }
-          return { userId };
         },
       })
     );
   }
 
   private async setupDatabaseConnection() {
-    try {
-      await connectDB();
-      logger.info('Connected to MongoDB');
-      this.retryCount = 0; // Bağlantı sağlandığında retry sayacını sıfırla
-
-      // MongoDB hata ve bağlantı kesilme durumlarını dinle
-      mongoose.connection.on('error', (error) => {
-        logger.error('MongoDB connection error', { error });
+    const connectWithRetry = async () => {
+      try {
+        // Mevcut bağlantıyı kapatmayı dene (varsa)
+        if (mongoose.connection.readyState !== 0) {
+          try {
+            await mongoose.connection.close();
+            logger.info('Closed existing MongoDB connection before reconnecting');
+          } catch (err) {
+            logger.warn('Error closing existing connection', { err });
+          }
+        }
+        
+        // Yeni bağlantı kurma
+        await connectDB();
+        logger.info('Connected to MongoDB');
+        this.retryCount = 0;
+        
+        // Mongoose connection event listeners...
+      } catch (error) {
+        logger.error('Failed to connect to MongoDB', { error });
         this.handleDatabaseError();
-      });
+      }
+    };
+    
+    await connectWithRetry();
+  }
 
-      mongoose.connection.on('disconnected', () => {
-        if (!this.isShuttingDown) {
-          logger.warn('MongoDB disconnected. Attempting to reconnect...');
+  // Ping mekanizmasını ayrı bir fonksiyona çıkaralım
+  private setupMongoPing() {
+    const pingInterval = setInterval(async () => {
+      if (mongoose.connection.readyState === 1 && !this.isShuttingDown) {
+        try {
+          // Hafif bir ping işlemi yap
+          await mongoose.connection.db?.admin().ping();
+          logger.debug('MongoDB ping successful');
+        } catch (error) {
+          logger.warn('MongoDB ping failed', { error });
+          // Bağlantıyı yeniden kurmayı dene
           this.handleDatabaseError();
         }
-      });
-    } catch (error) {
-      logger.error('Failed to connect to MongoDB', { error });
-      this.handleDatabaseError();
-    }
+      }
+    }, 60000); // Her dakika kontrol et
+    
+    // Server kapanırken interval'i temizle
+    process.on('beforeExit', () => {
+      clearInterval(pingInterval);
+    });
   }
 
   // Üstel geri çekilme (exponential backoff) stratejisiyle veritabanı yeniden bağlantı denemesi
@@ -254,6 +340,12 @@ class Server {
   public async start() {
     try {
       this.setupGracefulShutdown();
+
+      // Mongoose seçeneklerini ayarla
+      this.setupMongooseOptions();
+
+      // Düzenli ping kontrolünü başlat
+      this.setupMongoPing();
 
       await this.setupDatabaseConnection();
       await this.setupMiddleware();
