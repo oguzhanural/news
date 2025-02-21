@@ -15,9 +15,12 @@ const connectWithRetry = async () => {
     try {
       await mongoose.connect(MONGODB_URI, {
         maxPoolSize: 10,
-        serverSelectionTimeoutMS: 5000,
+        minPoolSize: 2,
+        maxConnecting: 2,
+        heartbeatFrequencyMS: 30000,
+        serverSelectionTimeoutMS: 15000,
         socketTimeoutMS: 45000,
-        connectTimeoutMS: 10000,
+        connectTimeoutMS: 30000,
         family: 4
       });
       
