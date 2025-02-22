@@ -10,6 +10,7 @@ export interface IUser extends Document {
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
+  verifyCurrentPassword(currentPassword: string): Promise<boolean>;
 }
 
 const UserSchema = new Schema<IUser>({
@@ -34,7 +35,16 @@ const UserSchema = new Schema<IUser>({
   password: {
     type: String,
     required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters']
+    minlength: [8, 'Password must be at least 8 characters'],
+    validate: {
+      validator: function(password: string) {
+        // Password must contain at least one uppercase letter, one lowercase letter, 
+        // one number, and be at least 8 characters long
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\w\W]{8,}$/;
+        return passwordRegex.test(password);
+      },
+      message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+    }
   },
   role: {
     type: String,
@@ -64,6 +74,11 @@ UserSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   
   try {
+    // Additional validation before hashing
+    if (this.password.length < 8) {
+      throw new Error('Password must be at least 8 characters long');
+    }
+
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     next();
@@ -76,6 +91,15 @@ UserSchema.pre('save', async function(next) {
 UserSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
   try {
     return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    return false;
+  }
+};
+
+// Add method to verify current password
+UserSchema.methods.verifyCurrentPassword = async function(currentPassword: string): Promise<boolean> {
+  try {
+    return await bcrypt.compare(currentPassword, this.password);
   } catch (error) {
     return false;
   }
