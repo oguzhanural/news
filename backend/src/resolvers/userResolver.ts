@@ -21,6 +21,17 @@ interface UpdateRoleInput {
   role: 'EDITOR' | 'JOURNALIST' | 'ADMIN' | 'READER';
 }
 
+interface UpdateUserInput {
+  name?: string;
+  email?: string;
+  password?: string;
+  currentPassword?: string;
+}
+
+interface Context {
+  userId: string | null;
+}
+
 const validateAdminAccess = async (userId: string) => {
   const user = await User.findById(userId);
   if (!user || user.role !== 'ADMIN') {
@@ -189,57 +200,80 @@ export const userResolver = {
     },
 
     // Update user (self or admin only)
-    updateUser: async (_: any, { id, input }: { id: string, input: Partial<UserInput> }, context: any) => {
-      try {
-        if (!context.userId) {
-          throw new GraphQLError('Authentication required', {
-            extensions: { code: 'UNAUTHENTICATED' }
-          });
-        }
+    updateUser: async (
+      _: unknown,
+      { id, input }: { id: string; input: UpdateUserInput },
+      { userId }: Context
+    ) => {
+      if (!userId) {
+        throw new GraphQLError('Not authenticated', {
+          extensions: { code: 'UNAUTHENTICATED' }
+        });
+      }
 
-        const currentUser = await User.findById(context.userId);
-        if (!currentUser) {
-          throw new GraphQLError('User not found', {
-            extensions: { code: 'NOT_FOUND' }
-          });
-        }
+      const user = await User.findById(id);
+      if (!user) {
+        throw new GraphQLError('User not found', {
+          extensions: { code: 'NOT_FOUND' }
+        });
+      }
 
-        // Only allow users to update their own profile or admin to update any profile
-        if (context.userId !== id && currentUser.role !== 'ADMIN') {
-          throw new GraphQLError('Not authorized', {
-            extensions: { code: 'FORBIDDEN' }
-          });
-        }
+      // Only allow users to update their own profile or admins to update any profile
+      const requestingUser = await User.findById(userId);
+      if (!requestingUser) {
+        throw new GraphQLError('User not found', {
+          extensions: { code: 'NOT_FOUND' }
+        });
+      }
 
-        // Check email uniqueness if email is being updated
-        if (input.email) {
-          const existingUser = await User.findOne({ email: input.email }).lean();
-          if (existingUser && existingUser._id && existingUser._id.toString() !== id) {
-            throw new GraphQLError('You cannot use this mail. Please try another mail address', {
-              extensions: { code: 'BAD_USER_INPUT' }
-            });
-          }
-        }
+      if (requestingUser.role !== 'ADMIN' && userId !== id) {
+        throw new GraphQLError('Not authorized to update this user', {
+          extensions: { code: 'FORBIDDEN' }
+        });
+      }
 
-        // Prevent role updates through this mutation
-        if (input.role) {
-          throw new GraphQLError('Role updates not allowed through this mutation', {
+      // If password is being updated, verify current password
+      if (input.password) {
+        // Current password is required for password changes
+        if (!input.currentPassword) {
+          throw new GraphQLError('Current password is required to change password', {
             extensions: { code: 'BAD_USER_INPUT' }
           });
         }
 
-        // Hash password if it's being updated
-        let updateData = { ...input };
-        if (input.password) {
-          const salt = await bcrypt.genSalt(10);
-          updateData.password = await bcrypt.hash(input.password, salt);
+        // Verify current password
+        const isCurrentPasswordValid = await user.verifyCurrentPassword(input.currentPassword);
+        if (!isCurrentPasswordValid) {
+          throw new GraphQLError('Current password is incorrect', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
         }
 
+        // Validate new password
+        if (input.password.length < 8) {
+          throw new GraphQLError('New password must be at least 8 characters long', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\w\W]{8,}$/;
+        if (!passwordRegex.test(input.password)) {
+          throw new GraphQLError(
+            'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+            { extensions: { code: 'BAD_USER_INPUT' } }
+          );
+        }
+      }
+
+      // Remove currentPassword from input before updating
+      const { currentPassword, ...updateData } = input;
+
+      try {
         const updatedUser = await User.findByIdAndUpdate(
           id,
           { $set: updateData },
           { new: true, runValidators: true }
-        ).select('-password');
+        );
 
         if (!updatedUser) {
           throw new GraphQLError('User not found', {
@@ -248,11 +282,13 @@ export const userResolver = {
         }
 
         return updatedUser;
-      } catch (error: unknown) {
-        if (error instanceof GraphQLError) throw error;
-        throw new GraphQLError('Error updating user', {
-          extensions: { code: 'INTERNAL_SERVER_ERROR' }
-        });
+      } catch (error) {
+        if (error instanceof Error) {
+          throw new GraphQLError(error.message, {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+        throw error;
       }
     },
 
