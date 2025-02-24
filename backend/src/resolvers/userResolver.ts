@@ -166,8 +166,12 @@ export const userResolver = {
           });
         }
 
-        const isValidPassword = await user.comparePassword(input.password);
+        // Add debug logging
+        console.log('Attempting login for user:', user.email);
+        
+        const isValidPassword = await bcrypt.compare(input.password, user.password);
         if (!isValidPassword) {
+          console.log('Password verification failed');
           throw new GraphQLError('Invalid credentials', {
             extensions: { code: 'UNAUTHENTICATED' }
           });
@@ -199,7 +203,7 @@ export const userResolver = {
       }
     },
 
-    // Update user (self or admin only)
+    // Update user
     updateUser: async (
       _: unknown,
       { id, input }: { id: string; input: UpdateUserInput },
@@ -232,21 +236,24 @@ export const userResolver = {
         });
       }
 
-      // If password is being updated, verify current password
+      // If password is being updated
       if (input.password) {
-        // Current password is required for password changes
-        if (!input.currentPassword) {
-          throw new GraphQLError('Current password is required to change password', {
-            extensions: { code: 'BAD_USER_INPUT' }
-          });
-        }
+        // For admin users, don't require current password verification
+        if (requestingUser.role !== 'ADMIN') {
+          // Current password is required for non-admin users
+          if (!input.currentPassword) {
+            throw new GraphQLError('Current password is required to change password', {
+              extensions: { code: 'BAD_USER_INPUT' }
+            });
+          }
 
-        // Verify current password
-        const isCurrentPasswordValid = await user.verifyCurrentPassword(input.currentPassword);
-        if (!isCurrentPasswordValid) {
-          throw new GraphQLError('Current password is incorrect', {
-            extensions: { code: 'BAD_USER_INPUT' }
-          });
+          // Verify current password
+          const isCurrentPasswordValid = await bcrypt.compare(input.currentPassword, user.password);
+          if (!isCurrentPasswordValid) {
+            throw new GraphQLError('Current password is incorrect', {
+              extensions: { code: 'BAD_USER_INPUT' }
+            });
+          }
         }
 
         // Validate new password
@@ -263,12 +270,17 @@ export const userResolver = {
             { extensions: { code: 'BAD_USER_INPUT' } }
           );
         }
+
+        // Hash the new password
+        const salt = await bcrypt.genSalt(10);
+        input.password = await bcrypt.hash(input.password, salt);
       }
 
       // Remove currentPassword from input before updating
       const { currentPassword, ...updateData } = input;
 
       try {
+        // Update user directly with hashed password
         const updatedUser = await User.findByIdAndUpdate(
           id,
           { $set: updateData },
