@@ -1,9 +1,15 @@
 import jwt from 'jsonwebtoken';
 
-export const verifyToken = async (token: string): Promise<string | null> => {
+interface JwtPayload {
+  userId: string;
+}
+
+export const verifyToken = async (token: string): Promise<JwtPayload | null> => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as { userId: string };
-    return decoded.userId;
+    if (!token) return null;
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as JwtPayload;
+    return decoded;
   } catch (error) {
     return null;
   }
