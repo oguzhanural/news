@@ -9,6 +9,7 @@ type News {
   status: NewsStatus!
   tags: [String!]!
   images: [NewsImage!]!
+  publishDate: String
   createdAt: String!
   updatedAt: String!
 }
@@ -16,6 +17,9 @@ type News {
 type NewsImage {
   url: String!
   isMain: Boolean!
+  caption: String
+  altText: String
+  credit: String
 }
 
 enum NewsStatus {
@@ -57,6 +61,7 @@ input CreateNewsInput {
   categoryId: ID!
   tags: [String!]!
   images: [NewsImageInput!]!
+  status: NewsStatus!
 }
 
 input UpdateNewsInput {
@@ -73,6 +78,9 @@ input UpdateNewsInput {
 input NewsImageInput {
   url: String!
   isMain: Boolean!
+  caption: String
+  altText: String
+  credit: String
 }
 
 input SearchNewsInput {
