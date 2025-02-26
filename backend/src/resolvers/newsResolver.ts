@@ -7,6 +7,8 @@ import mongoose from 'mongoose';
 interface Image {
   url: string;
   caption?: string;
+  altText?: string;
+  credit?: string;
   isMain: boolean;
 }
 
