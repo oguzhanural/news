@@ -13,7 +13,11 @@ export interface INews extends Document {
   images: {
     url: string;
     isMain: boolean;
+    caption?: string;
+    altText?: string;
+    credit?: string;
   }[];
+  publishDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,6 +60,10 @@ const newsSchema = new Schema({
     type: String,
     trim: true
   }],
+  publishDate: {
+    type: Date,
+    default: null
+  },
   images: {
     type: [{
       url: {
@@ -65,6 +73,17 @@ const newsSchema = new Schema({
       isMain: {
         type: Boolean,
         default: false
+      },
+      caption: {
+        type: String,
+        default: ''
+      },
+      altText: {
+        type: String,
+        default: ''
+      },
+      credit: {
+        type: String
       }
     }],
     required: true,
@@ -117,6 +136,12 @@ newsSchema.pre('save', async function(next) {
       counter++;
     }
   }
+  
+  // Set publishDate if status is PUBLISHED and publishDate is not set
+  if (this.isModified('status') && this.status === 'PUBLISHED' && !this.publishDate) {
+    this.publishDate = new Date();
+  }
+  
   next();
 });
 
