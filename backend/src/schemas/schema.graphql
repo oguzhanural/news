@@ -23,11 +23,12 @@ type News {
   content: String!
   summary: String!
   slug: String!
-  images: [NewsImage!]!
   author: User!
   category: Category!
   status: NewsStatus!
-  tags: [String!]
+  tags: [String!]!
+  images: [NewsImage!]!
+  publishDate: String
   createdAt: String!
   updatedAt: String!
 }
@@ -99,28 +100,31 @@ input UpdateCategoryInput {
 
 input NewsImageInput {
   url: String!
-  caption: String
   isMain: Boolean!
+  caption: String
+  altText: String
+  credit: String
 }
 
 input CreateNewsInput {
   title: String!
   content: String!
   summary: String!
-  images: [NewsImageInput!]!
   categoryId: ID!
+  tags: [String!]!
+  images: [NewsImageInput!]!
   status: NewsStatus!
-  tags: [String!]
 }
 
 input UpdateNewsInput {
+  id: ID!
   title: String
   content: String
   summary: String
-  images: [NewsImageInput!]
   categoryId: ID
   status: NewsStatus
   tags: [String!]
+  images: [NewsImageInput!]
 }
 
 input NewsFilterInput {
@@ -128,9 +132,8 @@ input NewsFilterInput {
   categoryId: ID
   authorId: ID
   tags: [String!]
-  startDate: String
-  endDate: String
-  searchQuery: String
+  fromDate: String
+  toDate: String
 }
 
 input NewsSortInput {
@@ -152,8 +155,10 @@ input SearchNewsInput {
 # Custom types
 type NewsImage {
   url: String!
-  caption: String
   isMain: Boolean!
+  caption: String
+  altText: String
+  credit: String
 }
 
 type AuthPayload {
@@ -185,7 +190,7 @@ type Query {
   
   # News queries
   news(id: ID!): News!
-  newsList(page: Int, limit: Int, filter: NewsFilterInput): NewsListResponse!
+  newsList(filter: NewsFilterInput, limit: Int, offset: Int): NewsListResponse!
   searchNews(query: String!, page: Int, limit: Int): SearchNewsResult!
 }
 
@@ -204,6 +209,6 @@ type Mutation {
   
   # News mutations
   createNews(input: CreateNewsInput!): News!
-  updateNews(id: ID!, input: UpdateNewsInput!): News!
+  updateNews(input: UpdateNewsInput!): News!
   deleteNews(id: ID!): Boolean!
 } 
