@@ -3,6 +3,12 @@ import { Category } from '../models/Category';
 import { User } from '../models/User';
 import { GraphQLError } from 'graphql';
 import mongoose from 'mongoose';
+import { isValidCloudinaryUrl, deleteCloudinaryImageByUrl, isCloudinaryConfigured } from '../utils/cloudinary';
+import { 
+  processRichTextContent, 
+  validateContentImages, 
+  createSummaryFromContent 
+} from '../utils/content';
 
 interface Image {
   url: string;
@@ -23,6 +29,7 @@ interface CreateNewsInput {
 }
 
 interface UpdateNewsInput {
+  id: string;
   title?: string;
   content?: string;
   summary?: string;
@@ -33,7 +40,7 @@ interface UpdateNewsInput {
 }
 
 // New interface for update data that includes all possible fields
-interface NewsUpdateData extends UpdateNewsInput {
+interface NewsUpdateData extends Omit<UpdateNewsInput, 'id'> {
   publishDate?: string;
   updatedAt: string;
 }
@@ -62,6 +69,16 @@ interface NewsSortInput {
   field: 'CREATED_AT' | 'UPDATED_AT' | 'TITLE' | 'STATUS';
   order: 'ASC' | 'DESC';
 }
+
+// Helper to find removed images when updating news
+const findRemovedImages = (oldImages: Image[], newImages: Image[]): string[] => {
+  if (!oldImages || !newImages) return [];
+  
+  const newUrls = new Set(newImages.map(img => img.url));
+  return oldImages
+    .filter(oldImg => !newUrls.has(oldImg.url))
+    .map(img => img.url);
+};
 
 export const newsResolver = {
   Query: {
@@ -245,6 +262,13 @@ export const newsResolver = {
     // Create new news article
     createNews: async (_: any, { input }: { input: CreateNewsInput }, context: any) => {
       try {
+        // Check if Cloudinary is configured
+        if (!isCloudinaryConfigured()) {
+          throw new GraphQLError('Cloudinary is not configured properly for image management', {
+            extensions: { code: 'INTERNAL_SERVER_ERROR' }
+          });
+        }
+
         // Authentication check
         if (!context.userId) {
           throw new GraphQLError('Authentication required', {
@@ -268,11 +292,36 @@ export const newsResolver = {
           });
         }
 
+        // Process and sanitize content
+        const processedContent = processRichTextContent(input.content);
+
+        // Validate embedded images in content
+        if (!validateContentImages(processedContent)) {
+          throw new GraphQLError('Invalid image URLs detected in content. All images must be from Cloudinary', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        // Generate summary if not provided or empty
+        let summary = input.summary;
+        if (!summary || summary.trim() === '') {
+          summary = createSummaryFromContent(processedContent);
+        }
+
         // Validate images
-        if (!input.images.length) {
+        if (!input.images || !input.images.length) {
           throw new GraphQLError('At least one image is required', {
             extensions: { code: 'BAD_USER_INPUT' }
           });
+        }
+
+        // Validate Cloudinary URLs
+        for (const image of input.images) {
+          if (!isValidCloudinaryUrl(image.url)) {
+            throw new GraphQLError('Invalid image URL format. Must be a Cloudinary URL', {
+              extensions: { code: 'BAD_USER_INPUT' }
+            });
+          }
         }
 
         // Ensure exactly one main image
@@ -284,15 +333,15 @@ export const newsResolver = {
         }
 
         // Set publishDate if status is PUBLISHED
-        const publishDate = input.status === 'PUBLISHED' ? new Date().toISOString() : null;
+        const publishDate = input.status === 'PUBLISHED' ? new Date() : null;
 
         const news = new News({
           ...input,
+          content: processedContent, 
+          summary,
           category: input.categoryId,
           author: context.userId,
-          publishDate,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          publishDate
         });
 
         await news.save();
@@ -316,14 +365,23 @@ export const newsResolver = {
     },
 
     // Update news article
-    updateNews: async (_: any, { id, input }: { id: string, input: UpdateNewsInput }, context: any) => {
+    updateNews: async (_: any, { input }: { input: UpdateNewsInput }, context: any) => {
       try {
+        // Check if Cloudinary is configured
+        if (!isCloudinaryConfigured()) {
+          throw new GraphQLError('Cloudinary is not configured properly for image management', {
+            extensions: { code: 'INTERNAL_SERVER_ERROR' }
+          });
+        }
+
         // Authentication check
         if (!context.userId) {
           throw new GraphQLError('Authentication required', {
             extensions: { code: 'UNAUTHENTICATED' }
           });
         }
+
+        const { id, ...updateFields } = input;
 
         // Find existing news
         const existingNews = await News.findById(id);
@@ -349,8 +407,8 @@ export const newsResolver = {
         }
 
         // Validate category if provided
-        if (input.categoryId) {
-          const category = await Category.findById(input.categoryId);
+        if (updateFields.categoryId) {
+          const category = await Category.findById(updateFields.categoryId);
           if (!category) {
             throw new GraphQLError('Category not found', {
               extensions: { code: 'BAD_USER_INPUT' }
@@ -358,29 +416,61 @@ export const newsResolver = {
           }
         }
 
-        // Validate images if provided
-        if (input.images) {
-          if (!input.images.length) {
+        // Process content if provided
+        if (updateFields.content) {
+          updateFields.content = processRichTextContent(updateFields.content);
+          
+          // Validate embedded images in content
+          if (!validateContentImages(updateFields.content)) {
+            throw new GraphQLError('Invalid image URLs detected in content. All images must be from Cloudinary', {
+              extensions: { code: 'BAD_USER_INPUT' }
+            });
+          }
+          
+          // Generate summary if not provided but content is updated
+          if (!updateFields.summary || updateFields.summary.trim() === '') {
+            updateFields.summary = createSummaryFromContent(updateFields.content);
+          }
+        }
+
+        // Handle image updates
+        if (updateFields.images) {
+          if (!updateFields.images.length) {
             throw new GraphQLError('At least one image is required', {
               extensions: { code: 'BAD_USER_INPUT' }
             });
           }
 
-          const mainImages = input.images.filter(img => img.isMain);
+          // Validate Cloudinary URLs
+          for (const image of updateFields.images) {
+            if (!isValidCloudinaryUrl(image.url)) {
+              throw new GraphQLError('Invalid image URL format. Must be a Cloudinary URL', {
+                extensions: { code: 'BAD_USER_INPUT' }
+              });
+            }
+          }
+
+          const mainImages = updateFields.images.filter(img => img.isMain);
           if (mainImages.length !== 1) {
             throw new GraphQLError('Exactly one main image must be specified', {
               extensions: { code: 'BAD_USER_INPUT' }
             });
           }
+
+          // Find removed images and delete them from Cloudinary
+          const removedImageUrls = findRemovedImages(existingNews.images, updateFields.images);
+          for (const imageUrl of removedImageUrls) {
+            await deleteCloudinaryImageByUrl(imageUrl);
+          }
         }
 
         // Update publishDate if status is changing to PUBLISHED
         const updateData: NewsUpdateData = {
-          ...input,
+          ...updateFields,
           updatedAt: new Date().toISOString()
         };
         
-        if (input.status === 'PUBLISHED' && existingNews.status !== 'PUBLISHED') {
+        if (updateFields.status === 'PUBLISHED' && existingNews.status !== 'PUBLISHED') {
           updateData.publishDate = new Date().toISOString();
         }
 
@@ -411,6 +501,13 @@ export const newsResolver = {
     // Delete news article
     deleteNews: async (_: any, { id }: { id: string }, context: any) => {
       try {
+        // Check if Cloudinary is configured
+        if (!isCloudinaryConfigured()) {
+          throw new GraphQLError('Cloudinary is not configured properly for image management', {
+            extensions: { code: 'INTERNAL_SERVER_ERROR' }
+          });
+        }
+
         // Authentication check
         if (!context.userId) {
           throw new GraphQLError('Authentication required', {
@@ -439,6 +536,11 @@ export const newsResolver = {
           throw new GraphQLError('Not authorized to delete this news', {
             extensions: { code: 'FORBIDDEN' }
           });
+        }
+
+        // Delete associated images from Cloudinary
+        for (const image of existingNews.images) {
+          await deleteCloudinaryImageByUrl(image.url);
         }
 
         await News.findByIdAndDelete(id);
