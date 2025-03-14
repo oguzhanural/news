@@ -190,7 +190,7 @@ type Query {
   
   # News queries
   news(id: ID!): News!
-  newsList(filter: NewsFilterInput, limit: Int, offset: Int): NewsListResponse!
+  newsList(filter: NewsFilterInput, sort: NewsSortInput, limit: Int, offset: Int): NewsListResponse!
   searchNews(query: String!, page: Int, limit: Int): SearchNewsResult!
 }
 
