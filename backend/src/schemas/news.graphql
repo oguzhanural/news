@@ -4,7 +4,7 @@ type News {
   content: String!
   summary: String!
   slug: String!
-  author: User!
+  author: User
   category: Category!
   status: NewsStatus!
   tags: [String!]!
