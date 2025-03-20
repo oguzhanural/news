@@ -115,6 +115,7 @@ export const newsResolver = {
     }) => {
       try {
         const { filter, sort, limit = 10, offset = 0 } = args;
+        console.log('Backend gelen filter:', filter);
         let query: any = {};
 
         // Apply filters
@@ -146,6 +147,7 @@ export const newsResolver = {
           }
         }
 
+        console.log('Backend oluşan query:', query);
         // Build sort object
         let sortObj: any = { createdAt: -1 }; // Default sort
         if (sort) {
@@ -156,7 +158,7 @@ export const newsResolver = {
         }
 
         // Execute query with pagination
-        const [news, total] = await Promise.all([
+        const [newsItems, total] = await Promise.all([
           News.find(query)
             .populate('category')
             .populate('author', '-password')
@@ -167,17 +169,18 @@ export const newsResolver = {
         ]);
 
         // Check if there are more results
-        const hasMore = news.length > limit;
+        const hasMore = newsItems.length > limit;
         if (hasMore) {
-          news.pop(); // Remove the extra item we fetched
+          newsItems.pop(); // Remove the extra item we fetched
         }
 
         return {
-          news,
+          news: newsItems,
           total,
           hasMore
         };
       } catch (error: unknown) {
+        console.error('Error fetching news list:', error);
         throw new GraphQLError('Error fetching news list', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' }
         });
@@ -565,6 +568,7 @@ export const newsResolver = {
   News: {
     category: async (parent: any) => {
       try {
+        if (!parent.category) return null;
         return await Category.findById(parent.category);
       } catch (error: unknown) {
         throw new GraphQLError('Error fetching category', {
@@ -574,11 +578,27 @@ export const newsResolver = {
     },
     author: async (parent: any) => {
       try {
-        return await User.findById(parent.author).select('-password');
+        if (!parent.author) return null;
+        const author = await User.findById(parent.author).select('-password');
+        // Return a default author object if author is not found
+        if (!author) {
+          return {
+            id: 'deleted-user',
+            name: 'Deleted User',
+            email: '',
+            role: 'DELETED'
+          };
+        }
+        return author;
       } catch (error: unknown) {
-        throw new GraphQLError('Error fetching author', {
-          extensions: { code: 'INTERNAL_SERVER_ERROR' }
-        });
+        console.error('Error fetching author:', error);
+        // Return a fallback author instead of throwing error
+        return {
+          id: 'unknown-user',
+          name: 'Unknown User',
+          email: '',
+          role: 'UNKNOWN'
+        };
       }
     }
   }
