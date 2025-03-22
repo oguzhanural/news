@@ -115,7 +115,6 @@ export const newsResolver = {
     }) => {
       try {
         const { filter, sort, limit = 10, offset = 0 } = args;
-        console.log('Backend gelen filter:', filter);
         let query: any = {};
 
         // Apply filters
