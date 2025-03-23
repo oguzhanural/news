@@ -146,7 +146,7 @@ export const newsResolver = {
           }
         }
 
-        console.log('Backend oluşan query:', query);
+
         // Build sort object
         let sortObj: any = { createdAt: -1 }; // Default sort
         if (sort) {
